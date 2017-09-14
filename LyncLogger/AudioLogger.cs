@@ -48,7 +48,7 @@ namespace LyncLogger
 		/// <summary>
 		/// start recording
 		/// </summary>
-		/// <param name="status"></param>
+		/// <param name="fileLog"></param>
 		public void Start(string fileLog)
 		{
 			if (!IsAllowedRecording)
@@ -76,7 +76,6 @@ namespace LyncLogger
 		/// <summary>
 		/// stop audio recording
 		/// </summary>
-		/// <param name="status"></param>
 		public void Stop()
 		{
 			if (!IsAllowedRecording)
@@ -94,12 +93,12 @@ namespace LyncLogger
 
 			try
 			{
-				Log.Info(string.Format("build audio record: {0} :", Path.Combine(_folderLog, _fileLog)));
+				Log.Info($"build audio record: {Path.Combine(_folderLog, _fileLog)} :");
 				_soundRecorder.MixerWave(TempFolder, Path.Combine(_folderLog, _fileLog));
 			}
 			catch (Exception ex)
 			{
-				Log.Error(string.Format("error building audio record file {0} :", Path.Combine(_folderLog, _fileLog)), ex);
+				Log.Error($"error building audio record file {Path.Combine(_folderLog, _fileLog)} :", ex);
 			}
 
 			try

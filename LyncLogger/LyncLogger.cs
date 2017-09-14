@@ -30,7 +30,7 @@ namespace LyncLogger
 		public LyncLogger(string folderLog)
 		{
 			_folderLog = new DirectoryInfo(folderLog);
-			_fileLog = Path.Combine(folderLog, "conversation_{0}_{1}.log");
+			_fileLog = Path.Combine(folderLog, "{0}_{1}.log");
 			_nameShortener = SettingsManager.ReadSetting("shortenName");
 
 			Run();
@@ -228,7 +228,7 @@ namespace LyncLogger
 			string name = (string)modality.Participant.Contact.GetContactInformation(ContactInformationType.DisplayName);
 
 			//reads the message in its plain text format (automatically converted)
-			string message = e.Text;
+			string message = e.Text.Trim();
 
 			//write message to log
 			using (FileStream stream = File.Open(fileLog, FileMode.Append, FileAccess.Write, FileShare.ReadWrite))
