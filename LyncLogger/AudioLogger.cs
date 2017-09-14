@@ -1,8 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using LyncLogger.SoundManager;
 using System.IO;
 using System.Windows.Forms;
@@ -12,131 +8,126 @@ using System.Reflection;
 
 namespace LyncLogger
 {
-    class AudioLogger
-    {
-        static string TEMP_FOLDER = Environment.ExpandEnvironmentVariables("%temp%\\lyncloggeraudio");
-        static string WAVE_FILENAME = TEMP_FOLDER + "\\captureSpeakers.wav";
-        static string MIC_FILENAME = TEMP_FOLDER + "\\captureMic.wav";
-        static string _folderLog = "";
-        static string _fileLog = "";
+	internal class AudioLogger
+	{
+		private static readonly string TempFolder = Environment.ExpandEnvironmentVariables("%temp%\\lyncloggeraudio");
+		private static readonly string WaveFilename = TempFolder + "\\captureSpeakers.wav";
+		private static readonly string MicFilename = TempFolder + "\\captureMic.wav";
+		private static string _folderLog = "";
+		private static string _fileLog = "";
 
-        private static readonly ILog _log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
+		private static readonly ILog Log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
 
-        SoundRecorder soundRecorder;
-        bool _isAllowedRecording = true;
+		private SoundRecorder _soundRecorder;
 
-        public bool isAllowedRecording
-        {
-            get { return _isAllowedRecording; }
-            set { _isAllowedRecording = value; }
-        }
+		public bool IsAllowedRecording { get; set; }
 
-        private static AudioLogger instance;
+		private static AudioLogger _instance;
 
-        private AudioLogger() { }
+		private AudioLogger() { }
 
-        public static AudioLogger Instance
-        {
-            get
-            {
-                if (instance == null)
-                {
-                    instance = new AudioLogger();
-                }
-                return instance;
-            }
-        }
+		public static AudioLogger Instance
+		{
+			get
+			{
+				if (_instance == null)
+				{
+					_instance = new AudioLogger();
+				}
+				return _instance;
+			}
+		}
 
-        internal void Initialize(string folderLog)
-        {
-            _folderLog = folderLog;
+		internal void Initialize(string folderLog)
+		{
+			_folderLog = folderLog;
 
-            soundRecorder = new SoundRecorder();
-        }
+			_soundRecorder = new SoundRecorder();
+		}
 
-        /// <summary>
-        /// start recording
-        /// </summary>
-        /// <param name="status"></param>
-        public void Start(string fileLog)
-        {
-            if (!_isAllowedRecording)
-            {
-                _log.Warn("recording not active (known)");
-                return;
-            }
-            _fileLog = fileLog;
+		/// <summary>
+		/// start recording
+		/// </summary>
+		/// <param name="status"></param>
+		public void Start(string fileLog)
+		{
+			if (!IsAllowedRecording)
+			{
+				Log.Warn("recording not active (known)");
+				return;
+			}
+			_fileLog = fileLog;
 
-            if (!Directory.Exists(TEMP_FOLDER))
-                Directory.CreateDirectory(TEMP_FOLDER);
+			if (!Directory.Exists(TempFolder))
+				Directory.CreateDirectory(TempFolder);
 
-            try
-            {
-                soundRecorder.CaptureSpeakersToWave(WAVE_FILENAME, true);
+			try
+			{
+				_soundRecorder.CaptureSpeakersToWave(WaveFilename, true);
 
-                soundRecorder.CaptureMicToWave(MIC_FILENAME);
-            }
-            catch (Exception ex)
-            {
-                _log.Error("error starting audio recording", ex);
-            }
-        }
+				_soundRecorder.CaptureMicToWave(MicFilename);
+			}
+			catch (Exception ex)
+			{
+				Log.Error("error starting audio recording", ex);
+			}
+		}
 
-        /// <summary>
-        /// stop audio recording
-        /// </summary>
-        /// <param name="status"></param>
-        public void Stop()
-        {
-            if (!_isAllowedRecording)
-                return;
+		/// <summary>
+		/// stop audio recording
+		/// </summary>
+		/// <param name="status"></param>
+		public void Stop()
+		{
+			if (!IsAllowedRecording)
+				return;
 
-            try
-            {
-                soundRecorder.UnCaptureSpeakersToWave();
-                soundRecorder.UnCaptureMicToWave();
-            }
-            catch (Exception ex)
-            {
-                _log.Error("error canceling audio recording", ex);
-            }
+			try
+			{
+				_soundRecorder.UnCaptureSpeakersToWave();
+				_soundRecorder.UnCaptureMicToWave();
+			}
+			catch (Exception ex)
+			{
+				Log.Error("error canceling audio recording", ex);
+			}
 
-            try
-            {
-                _log.Info(string.Format("build audio record: {0} :", Path.Combine(_folderLog, _fileLog)));
-                soundRecorder.MixerWave(TEMP_FOLDER, Path.Combine(_folderLog, _fileLog));
-            }
-            catch (Exception ex)
-            {
-                _log.Error(string.Format("error building audio record file {0} :", Path.Combine(_folderLog, _fileLog)), ex);
-            }
+			try
+			{
+				Log.Info(string.Format("build audio record: {0} :", Path.Combine(_folderLog, _fileLog)));
+				_soundRecorder.MixerWave(TempFolder, Path.Combine(_folderLog, _fileLog));
+			}
+			catch (Exception ex)
+			{
+				Log.Error(string.Format("error building audio record file {0} :", Path.Combine(_folderLog, _fileLog)), ex);
+			}
 
-            try
-            {
-                Directory.Delete(TEMP_FOLDER, true);
-            }
-            catch (Exception ex)
-            {
-                _log.Error("error deleting record temp folder", ex);
-            }
-        }
+			try
+			{
+				Directory.Delete(TempFolder, true);
+			}
+			catch (Exception ex)
+			{
+				Log.Error("error deleting record temp folder", ex);
+			}
+		}
 
-        /// <summary>
-        /// Activate or Deactivate audio recording
-        /// </summary>
-        internal void Switch()
-        {
-            _isAllowedRecording = !_isAllowedRecording;
-            string status = (_isAllowedRecording ? "Activated" : "Deactivated");
+		/// <summary>
+		/// Activate or Deactivate audio recording
+		/// </summary>
+		internal void Switch()
+		{
+			IsAllowedRecording = !IsAllowedRecording;
+			string status = (IsAllowedRecording ? "Activated" : "Deactivated");
 
-            RegistryKey LyncLoggerKey = Registry.CurrentUser.OpenSubKey("LyncLogger");
-            if (LyncLoggerKey != null)
-            {
-                LyncLoggerKey.SetValue("Audio", status);
-                LyncLoggerKey.Close();
-            }
+			RegistryKey lyncLoggerKey = Registry.CurrentUser.OpenSubKey("LyncLogger");
+			if (lyncLoggerKey != null)
+			{
+				lyncLoggerKey.SetValue("Audio", status);
+				lyncLoggerKey.Close();
+			}
 
-            MessageBox.Show("Audio logger is " + status);
-        }
-    }
+			MessageBox.Show("Audio logger is " + status);
+		}
+	}
 }
