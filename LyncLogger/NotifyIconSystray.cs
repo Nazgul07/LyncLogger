@@ -41,7 +41,7 @@ namespace LyncLogger
 		/// <param name="status"></param>
 		public static void Status_DelegateMethod(bool status)
 		{
-			string text = String.Format("{0}\nstatus: {1}", _name, status ? _onText : _offText);
+			string text = $"{_name}\nstatus: {(status ? _onText : _offText)}";
 
 			string iconName = status ? _onImage : _offImage;
 
@@ -68,7 +68,7 @@ namespace LyncLogger
 			//get icon by its name. Icon must be in the project as embedded resource
 			Assembly assembly = Assembly.GetExecutingAssembly();
 			string ns = assembly.EntryPoint.DeclaringType.Namespace;
-			Stream iconStream = assembly.GetManifestResourceStream(string.Format("{0}.{1}", ns, iconName));
+			Stream iconStream = assembly.GetManifestResourceStream($"{ns}.{iconName}");
 			_notifyIcon.Icon = new Icon(iconStream);
 		}
 

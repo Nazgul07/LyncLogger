@@ -53,7 +53,7 @@ namespace LyncLogger.SoundManager
 				_source = notifyStream.ToWaveSource(16);
 				_writerBuffer = new byte[_source.WaveFormat.BytesPerSecond];
 
-				wavefile = string.Format("{0}{1}{2}", wavefile.Remove(wavefile.LastIndexOf(extension) - (i > 1 ? 1 : 0)), i, extension);
+				wavefile = $"{wavefile.Remove(wavefile.LastIndexOf(extension) - (i > 1 ? 1 : 0))}{i}{extension}";
 				_writer = new WaveWriter(wavefile, _source.WaveFormat);
 				waveInToSource.DataAvailable += (s, e) =>
 				{
