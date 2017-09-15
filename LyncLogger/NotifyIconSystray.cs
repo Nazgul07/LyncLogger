@@ -2,8 +2,11 @@
 using System.Diagnostics;
 using System.Drawing;
 using System.IO;
+using System.Net;
 using System.Reflection;
 using System.Windows.Forms;
+using AdysTech.CredentialManager;
+using Microsoft.Exchange.WebServices.Data;
 
 namespace LyncLogger
 {
@@ -92,6 +95,9 @@ namespace LyncLogger
 			{
 				contextMenu1.MenuItems.AddRange(items);
 			}
+
+			contextMenu1.MenuItems.Add(new MenuItem("Authenticate with Office 365", (s, e) => { AuthenticateWithOffice365(); }));
+
 			contextMenu1.MenuItems.Add(new MenuItem("Quit", (s, e) =>
 			{
 				if (OnQuit != null)
@@ -102,6 +108,29 @@ namespace LyncLogger
 			}));
 			_notifyIcon.ContextMenu = contextMenu1;
 
+		}
+
+		private static void AuthenticateWithOffice365(string message = "")
+		{
+			bool save = false;
+			var cred = CredentialManager.PromptForCredentials("Office 365", ref save, message,
+				"Credentials for Office 365");
+			if (cred == null) return;
+			var ewsProxy = new ExchangeService() {Url = new Uri("https://outlook.office365.com/ews/exchange.asmx")};
+
+			try
+			{
+				ewsProxy.Credentials = new NetworkCredential(cred.UserName, cred.Password);
+				ewsProxy.FindFolders(WellKnownFolderName.Root, new FolderView(1));
+
+				SettingsManager.AddUpdateAppSettings("office365username", cred.UserName);
+				SettingsManager.AddUpdateAppSettings("office365password",
+					SecureCredentials.EncryptString(SecureCredentials.ToSecureString(cred.Password)));
+			}
+			catch
+			{
+				AuthenticateWithOffice365("Invalid Credentials. Try again.");
+			}
 		}
 
 		public static void DisposeNotifyIcon()

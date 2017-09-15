@@ -4,7 +4,11 @@ using System.Windows.Forms;
 using System.Diagnostics;
 using System.IO;
 using System.ComponentModel;
+using System.Linq;
+using System.Net;
+using AdysTech.CredentialManager;
 using log4net;
+using Microsoft.Exchange.WebServices.Data;
 using Microsoft.Win32;
 
 namespace LyncLogger

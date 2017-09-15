@@ -1,18 +1,23 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using Microsoft.Lync.Model;
 using Microsoft.Lync.Model.Conversation;
 using Microsoft.Lync.Model.Conversation.AudioVideo;
 using System.IO;
+using System.Net;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Reflection;
 using log4net;
+using Microsoft.Exchange.WebServices.Data;
+using Conversation = Microsoft.Lync.Model.Conversation.Conversation;
 
 namespace LyncLogger
 {
 	internal class LyncLogger
 	{
+		private static Dictionary<Conversation, EmailMessage> _outlookConversations = new Dictionary<Conversation, EmailMessage>();
 		private const string LogHeader = "// Convestation started with {0} on {1}"; //header of the file
 		private const string LogMiddleHeader = "---- conversation resumed ----"; //middle header of the file
 		private const string LogMessage = "{0} ({1}): {2}"; //msg formating
@@ -150,13 +155,14 @@ namespace LyncLogger
 			}
 
 			Conversation conv = e.Conversation;
+			StartOfficeConversation(conv);
 
 			//detect all participant (including user)
 			conv.ParticipantAdded += (_sender, _e) =>
 			{
 				var participant = _e.Participant;
 				InstantMessageModality remoteImModality = (InstantMessageModality)participant.Modalities[ModalityTypes.InstantMessage];
-
+				
 				//detect all messages (including user's)
 				remoteImModality.InstantMessageReceived += (__sender, __e) =>
 				{
@@ -223,7 +229,6 @@ namespace LyncLogger
 		private static void remoteImModality_InstantMessageReceived(object sender, MessageSentEventArgs e, String fileLog)
 		{
 			InstantMessageModality modality = (InstantMessageModality)sender;
-
 			//gets the participant name
 			string name = (string)modality.Participant.Contact.GetContactInformation(ContactInformationType.DisplayName);
 
@@ -239,8 +244,59 @@ namespace LyncLogger
 					{
 						name = name.Substring(name.IndexOf(_nameShortener) + _nameShortener.Length);
 					}
-					writer.WriteLine(LogMessage, name, DateTime.Now.ToString("HH:mm:ss"), message);
+					writer.WriteLine(LogMessage, name, $"{DateTime.Now:hh:mm:ss tt}", message);
 				}
+			}
+
+			AppendToOfficeConversation(modality.Conversation, string.Format(LogMessage, name, $"{DateTime.Now:hh:mm:ss tt}", e.Contents[InstantMessageContentType.Html]));
+		}
+
+		private static void StartOfficeConversation(Conversation converation)
+		{
+
+			//Connect to exchange
+			var ewsProxy = new ExchangeService() { Url = new Uri("https://outlook.office365.com/ews/exchange.asmx") };
+
+
+			//Create the conversation message
+			var message = new EmailMessage(ewsProxy);
+
+			ewsProxy.Credentials = new NetworkCredential(SettingsManager.ReadSetting("office365username"),
+				SecureCredentials.DecryptString(SettingsManager.ReadSetting("office365password")));
+
+			// Set the properties on the meeting object to create the meeting.
+			message.Subject = $"Conversation with {converation.Participants.First().Contact.GetContactInformation(ContactInformationType.DisplayName)}";
+			
+			message.Sender = new EmailAddress((converation.Participants.First().Contact.GetContactInformation(ContactInformationType.EmailAddresses) as List<object>).First() as string);
+			foreach (Participant participant in converation.Participants)
+			{
+				message.ToRecipients.Add(
+					(participant.Contact.GetContactInformation(ContactInformationType.EmailAddresses) as List<object>).First() as string);
+			}
+
+			ExtendedPropertyDefinition extendedPropertyDefinition =
+				new ExtendedPropertyDefinition(3591, MapiPropertyType.Integer);
+			message.SetExtendedProperty(extendedPropertyDefinition, 1);// sets the message as a non-draft
+
+			try
+			{
+				message.Save(WellKnownFolderName.ConversationHistory);
+				_outlookConversations[converation] = message;
+			}
+			catch
+			{
+				Log.Error("Authentication to Office 365 failed.");
+			}
+		}
+
+		private static void AppendToOfficeConversation(Conversation converation, string text)
+		{
+			if (_outlookConversations.ContainsKey(converation))
+			{
+				EmailMessage message = _outlookConversations[converation];
+				message.Load();
+				message.Body = new MessageBody(message.Body.Text + text + "<br/>");
+				message.Update(ConflictResolutionMode.AutoResolve);
 			}
 		}
 
