@@ -18,7 +18,7 @@ You can enter your Office 365 Credentials to have your conversations saved to yo
 ## Download
 
 Download the latest version of LyncLogger here:
-https://github.com/Zougi/LyncLogger/releases/download/latest
+https://github.com/Nazgul07/LyncLogger/releases
 
 
 ## Notes
