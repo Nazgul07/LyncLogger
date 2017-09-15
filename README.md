@@ -23,7 +23,7 @@ https://github.com/Nazgul07/LyncLogger/releases
 
 ## Notes
 
-Compatible & tested on Skype for Business 2016
+Tested on Skype for Business 2016 but should be compatible with Lync 2013
 
 To start the program automaticaly at startup you can put a shorcut in the folder "C:\ProgramData\Microsoft\Windows\Start Menu\Programs\Startup"
 
