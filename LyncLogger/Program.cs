@@ -4,7 +4,9 @@ using System.Windows.Forms;
 using System.Diagnostics;
 using System.IO;
 using System.ComponentModel;
+using System.Net;
 using log4net;
+using Microsoft.Exchange.WebServices.Data;
 using Microsoft.Win32;
 
 namespace LyncLogger
@@ -90,6 +92,20 @@ namespace LyncLogger
 				subkey.Close();
 			}
 		}
-
+		public static bool Validate365Credentials(NetworkCredential cred)
+		{
+			try
+			{
+				var ewsProxy = new ExchangeService() { Url = new Uri("https://outlook.office365.com/ews/exchange.asmx") };
+				ewsProxy.Credentials = new NetworkCredential(cred.UserName, cred.Password);
+				ewsProxy.FindFolders(WellKnownFolderName.Root, new FolderView(1));
+				return true;
+			}
+			catch
+			{
+				Log.Error("Authentication to Office 365 failed.");
+				return false;
+			}
+		}
 	}
 }

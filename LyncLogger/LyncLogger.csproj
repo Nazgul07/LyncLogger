@@ -95,6 +95,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="AudioLogger.cs" />
+    <Compile Include="LyncConversation.cs" />
     <Compile Include="LyncLogger.cs" />
     <Compile Include="NotifyIconSystray.cs" />
     <Compile Include="Program.cs" />

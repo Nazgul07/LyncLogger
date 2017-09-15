@@ -98,7 +98,7 @@ namespace LyncLogger
 				contextMenu1.MenuItems.AddRange(items);
 			}
 
-			contextMenu1.MenuItems.Add(new MenuItem(ValidateCredentials(new NetworkCredential(SettingsManager.ReadSetting("office365username"),
+			contextMenu1.MenuItems.Add(new MenuItem(Program.Validate365Credentials(new NetworkCredential(SettingsManager.ReadSetting("office365username"),
 				SecureCredentials.DecryptString(SettingsManager.ReadSetting("office365password")))) ? Disable365 : Enable365, (s, e) =>
 			{
 				AuthenticateWithOffice365((MenuItem)s);
@@ -122,7 +122,7 @@ namespace LyncLogger
 					"Credentials for Office 365");
 				if (cred == null) return;
 			
-				if(ValidateCredentials(cred))
+				if(Program.Validate365Credentials(cred))
 				{ 
 					SettingsManager.AddUpdateAppSettings("office365username", cred.UserName);
 					SettingsManager.AddUpdateAppSettings("office365password",
@@ -142,20 +142,7 @@ namespace LyncLogger
 			}
 		}
 
-		private static bool ValidateCredentials(NetworkCredential cred)
-		{
-			try
-			{
-				var ewsProxy = new ExchangeService() {Url = new Uri("https://outlook.office365.com/ews/exchange.asmx")};
-				ewsProxy.Credentials = new NetworkCredential(cred.UserName, cred.Password);
-				ewsProxy.FindFolders(WellKnownFolderName.Root, new FolderView(1));
-				return true;
-			}
-			catch
-			{
-				return false;
-			}
-		}
+		
 
 		public static void DisposeNotifyIcon()
 		{

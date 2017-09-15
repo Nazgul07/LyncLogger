@@ -17,10 +17,11 @@ namespace LyncLogger
 {
 	internal class LyncLogger
 	{
-		private static readonly Dictionary<Conversation, EmailMessage> OutlookConversations = new Dictionary<Conversation, EmailMessage>();
+		private static readonly Dictionary<Conversation, Conversation365> OutlookConversations = new Dictionary<Conversation, Conversation365>();
 		private const string LogHeader = "// Convestation started with {0} on {1}"; //header of the file
 		private const string LogMiddleHeader = "---- conversation resumed ----"; //middle header of the file
 		private const string LogMessage = "{0} ({1}): {2}"; //msg formating
+		private const string LogMessageHTML = "<span style=\"font-size:11px;font-variant:normal;text-transform:none;\"><b>{0}&nbsp;{1}</b></span>:<br/>{2}"; //msg formating
 		private const string LogAudio = "Audio conversation {0} at {1}"; //msg audio started/ended formating
 
 		private const int DelayRetryAuthentication = 20000; // delay before authentication retry (in ms)
@@ -32,12 +33,24 @@ namespace LyncLogger
 
 		private static readonly ILog Log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
 
+		private static readonly System.Timers.Timer _timer365Save = new System.Timers.Timer(60000);
+
 		public static void Run(string folderLog)
 		{
 			_folderLog = new DirectoryInfo(folderLog);
 			_fileLog = Path.Combine(folderLog, "{0}_{1}.log");
 			_nameShortener = SettingsManager.ReadSetting("shortenName");
-
+			_timer365Save.Elapsed += (sender, args) =>
+			{
+				foreach (var keyPair in OutlookConversations)
+				{
+					if (keyPair.Value.LastSaved.AddMinutes(5) <= DateTime.Now)
+					{
+						Save365Conversation(keyPair.Key);
+					}
+				}
+			};
+			_timer365Save.Start();
 			Run();
 		}
 
@@ -58,6 +71,8 @@ namespace LyncLogger
 					{
 						Log.Info("User signed out. Watch for signed in event");
 						NotifyIconSystray.ChangeStatus(false);
+						SaveAll365Conversations();
+						OutlookConversations.Clear();
 						Run();
 					}
 				};
@@ -92,6 +107,8 @@ namespace LyncLogger
 					Run();
 				}
 
+				SaveAll365Conversations();
+				OutlookConversations.Clear();
 			}
 			catch (LyncClientException lyncClientException)
 			{
@@ -156,7 +173,7 @@ namespace LyncLogger
 			}
 
 			Conversation conv = e.Conversation;
-			StartOfficeConversation(conv);
+			Start365Conversation(conv);
 
 			//detect all participant (including user)
 			conv.ParticipantAdded += (_sender, _e) =>
@@ -249,10 +266,10 @@ namespace LyncLogger
 				}
 			}
 
-			AppendToOfficeConversation(modality.Conversation, string.Format(LogMessage, name, $"{DateTime.Now:hh:mm:ss tt}", e.Contents[InstantMessageContentType.Html]));
+			AppendTo365Conversation(modality.Conversation, string.Format(LogMessageHTML, name, $"{DateTime.Now:h:mm tt}", e.Contents[InstantMessageContentType.Html]));
 		}
 
-		private static void StartOfficeConversation(Conversation converation)
+		private static void Start365Conversation(Conversation converation)
 		{
 
 			//Connect to exchange
@@ -262,42 +279,77 @@ namespace LyncLogger
 			//Create the conversation message
 			var message = new EmailMessage(ewsProxy);
 
-			ewsProxy.Credentials = new NetworkCredential(SettingsManager.ReadSetting("office365username"),
+			var cred = new NetworkCredential(SettingsManager.ReadSetting("office365username"),
 				SecureCredentials.DecryptString(SettingsManager.ReadSetting("office365password")));
 
-			
-			message.Subject = $"Conversation with {converation.Participants.First().Contact.GetContactInformation(ContactInformationType.DisplayName)}";
-			
-			message.Sender = new EmailAddress((converation.Participants.First().Contact.GetContactInformation(ContactInformationType.EmailAddresses) as List<object>).First() as string);
-			foreach (Participant participant in converation.Participants)
-			{
-				message.ToRecipients.Add(
-					(participant.Contact.GetContactInformation(ContactInformationType.EmailAddresses) as List<object>).First() as string);
-			}
+			ewsProxy.Credentials = cred;
 
-			ExtendedPropertyDefinition extendedPropertyDefinition =
-				new ExtendedPropertyDefinition(3591, MapiPropertyType.Integer);
-			message.SetExtendedProperty(extendedPropertyDefinition, 1);// sets the message as a non-draft
+			if (Program.Validate365Credentials(cred))
+			{
+				message.Body = string.Empty;
+				message.Subject =
+					$"Conversation with {converation.Participants.First().Contact.GetContactInformation(ContactInformationType.DisplayName)}";
 
-			try
-			{
-				message.Save(WellKnownFolderName.ConversationHistory);
-				OutlookConversations[converation] = message;
-			}
-			catch
-			{
-				Log.Error("Authentication to Office 365 failed.");
+				message.Sender = new EmailAddress((converation.Participants.First().Contact
+					.GetContactInformation(ContactInformationType.EmailAddresses) as List<object>).First() as string);
+				foreach (Participant participant in converation.Participants)
+				{
+					message.ToRecipients.Add(
+						(participant.Contact.GetContactInformation(ContactInformationType.EmailAddresses) as List<object>)
+						.First() as string);
+				}
+
+				ExtendedPropertyDefinition extendedPropertyDefinition =
+					new ExtendedPropertyDefinition(3591, MapiPropertyType.Integer);
+				message.SetExtendedProperty(extendedPropertyDefinition, 1); // sets the message as a non-draft
+
+				OutlookConversations[converation] = new Conversation365
+				{
+					Message = message,
+					LastSaved = DateTime.Now,
+					UnsavedMessageCount = 0
+				};
 			}
 		}
 
-		private static void AppendToOfficeConversation(Conversation converation, string text)
+		private static void AppendTo365Conversation(Conversation converation, string text)
 		{
 			if (OutlookConversations.ContainsKey(converation))
 			{
-				EmailMessage message = OutlookConversations[converation];
-				message.Load();
+				Conversation365 conversation365 = OutlookConversations[converation];
+				EmailMessage message = conversation365.Message;
 				message.Body = new MessageBody(message.Body.Text + text + "<br/>");
+
+				if (conversation365.UnsavedMessageCount++ == 25)
+				{
+					Save365Conversation(converation);
+				}
+			}
+		}
+
+		private static void Save365Conversation(Conversation converation)
+		{
+			if (OutlookConversations.ContainsKey(converation))
+			{
+				Conversation365 conversation365 = OutlookConversations[converation];
+				EmailMessage message = conversation365.Message;
+				if (message.Id == null)
+				{
+					message.Save(WellKnownFolderName.ConversationHistory);
+				}
 				message.Update(ConflictResolutionMode.AutoResolve);
+				conversation365.UnsavedMessageCount = 0;
+				conversation365.LastSaved = DateTime.Now;
+
+				Log.Info($"Office 365 Conversation Saved");
+			}
+		}
+
+		private static void SaveAll365Conversations()
+		{
+			foreach (var keyPair in OutlookConversations)
+			{
+				Save365Conversation(keyPair.Key);
 			}
 		}
 
