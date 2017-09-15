@@ -9,12 +9,12 @@ namespace LyncLogger
 {
 	internal static class SecureCredentials
 	{
-		static readonly byte[] Entropy = System.Text.Encoding.Unicode.GetBytes("Some Random Salt 12389urnn232958y220r829f29n20389rh-5");
+		static readonly byte[] Entropy = Encoding.Unicode.GetBytes("Some Random Salt 12389urnn232958y220r829f29n20389rh-5");
 
-		public static string EncryptString(System.Security.SecureString input)
+		public static string EncryptString(SecureString input)
 		{
 			byte[] encryptedData = System.Security.Cryptography.ProtectedData.Protect(
-				System.Text.Encoding.Unicode.GetBytes(ToInsecureString(input)),
+				Encoding.Unicode.GetBytes(ToInsecureString(input)),
 				Entropy,
 				System.Security.Cryptography.DataProtectionScope.CurrentUser);
 			return Convert.ToBase64String(encryptedData);
@@ -28,7 +28,7 @@ namespace LyncLogger
 					Convert.FromBase64String(encryptedData),
 					Entropy,
 					System.Security.Cryptography.DataProtectionScope.CurrentUser);
-				return ToSecureString(System.Text.Encoding.Unicode.GetString(decryptedData));
+				return ToSecureString(Encoding.Unicode.GetString(decryptedData));
 			}
 			catch
 			{

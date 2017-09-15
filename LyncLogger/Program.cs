@@ -4,11 +4,7 @@ using System.Windows.Forms;
 using System.Diagnostics;
 using System.IO;
 using System.ComponentModel;
-using System.Linq;
-using System.Net;
-using AdysTech.CredentialManager;
 using log4net;
-using Microsoft.Exchange.WebServices.Data;
 using Microsoft.Win32;
 
 namespace LyncLogger
@@ -54,16 +50,7 @@ namespace LyncLogger
 			{
 				try
 				{
-					new LyncLogger(logFolder);
-				}
-				catch (FileNotFoundException)
-				{
-					string errorMsg = "Software is missing dlls, please visit https://github.com/Zougi/LyncLogger";
-					Log.Error(errorMsg);
-
-					//set a user friendly error
-					string iconName = "icon_ooo.ico";
-					NotifyIconSystray.SetNotifyIcon(iconName, errorMsg);
+					LyncLogger.Run(logFolder);
 				}
 				catch (Exception ex)
 				{

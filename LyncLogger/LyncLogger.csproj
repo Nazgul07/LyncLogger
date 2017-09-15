@@ -106,7 +106,9 @@
     <Compile Include="SoundManager\SoundRecorder.cs" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="App.config" />
+    <None Include="App.config">
+      <SubType>Designer</SubType>
+    </None>
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
@@ -131,9 +133,6 @@
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="icon_off.ico" />
-  </ItemGroup>
-  <ItemGroup>
-    <EmbeddedResource Include="icon_ooo.ico" />
   </ItemGroup>
   <ItemGroup>
     <None Include="FodyWeavers.xml" />

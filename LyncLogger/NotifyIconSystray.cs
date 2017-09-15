@@ -15,6 +15,8 @@ namespace LyncLogger
 	/// </summary>
 	internal static class NotifyIconSystray
 	{
+		private const string Enable365 = "Enable Office 365 Integration";
+		private const string Disable365 = "Disable Office 365 Integration";
 		private static NotifyIcon _notifyIcon;
 		public delegate void Status(bool status);
 		private static string _name;
@@ -85,7 +87,7 @@ namespace LyncLogger
 		public static void AddNotifyIcon(String name, MenuItem[] items = null)
 		{
 			_name = name;
-			_notifyIcon = new System.Windows.Forms.NotifyIcon();
+			_notifyIcon = new NotifyIcon();
 			_notifyIcon.Visible = true;
 
 			Status_DelegateMethod(false); //set name and icon
@@ -96,40 +98,62 @@ namespace LyncLogger
 				contextMenu1.MenuItems.AddRange(items);
 			}
 
-			contextMenu1.MenuItems.Add(new MenuItem("Authenticate with Office 365", (s, e) => { AuthenticateWithOffice365(); }));
+			contextMenu1.MenuItems.Add(new MenuItem(ValidateCredentials(new NetworkCredential(SettingsManager.ReadSetting("office365username"),
+				SecureCredentials.DecryptString(SettingsManager.ReadSetting("office365password")))) ? Disable365 : Enable365, (s, e) =>
+			{
+				AuthenticateWithOffice365((MenuItem)s);
+			}));
 
 			contextMenu1.MenuItems.Add(new MenuItem("Quit", (s, e) =>
 			{
-				if (OnQuit != null)
-				{
-					OnQuit();
-				}
+				OnQuit?.Invoke();
 				DisposeNotifyIcon();
 			}));
 			_notifyIcon.ContextMenu = contextMenu1;
 
 		}
 
-		private static void AuthenticateWithOffice365(string message = "")
+		private static void AuthenticateWithOffice365(MenuItem menu, string message = "")
 		{
 			bool save = false;
-			var cred = CredentialManager.PromptForCredentials("Office 365", ref save, message,
-				"Credentials for Office 365");
-			if (cred == null) return;
-			var ewsProxy = new ExchangeService() {Url = new Uri("https://outlook.office365.com/ews/exchange.asmx")};
+			if (menu.Text == Enable365)
+			{
+				var cred = CredentialManager.PromptForCredentials("Office 365", ref save, message,
+					"Credentials for Office 365");
+				if (cred == null) return;
+			
+				if(ValidateCredentials(cred))
+				{ 
+					SettingsManager.AddUpdateAppSettings("office365username", cred.UserName);
+					SettingsManager.AddUpdateAppSettings("office365password",
+						SecureCredentials.EncryptString(SecureCredentials.ToSecureString(cred.Password)));
+					menu.Text = Disable365;
+				}
+				else
+				{
+					AuthenticateWithOffice365(menu, "Invalid Credentials. Try again.");
+				}
+			}
+			else
+			{
+				SettingsManager.AddUpdateAppSettings("office365username", "");
+				SettingsManager.AddUpdateAppSettings("office365password", "");
+				menu.Text = Enable365;
+			}
+		}
 
+		private static bool ValidateCredentials(NetworkCredential cred)
+		{
 			try
 			{
+				var ewsProxy = new ExchangeService() {Url = new Uri("https://outlook.office365.com/ews/exchange.asmx")};
 				ewsProxy.Credentials = new NetworkCredential(cred.UserName, cred.Password);
 				ewsProxy.FindFolders(WellKnownFolderName.Root, new FolderView(1));
-
-				SettingsManager.AddUpdateAppSettings("office365username", cred.UserName);
-				SettingsManager.AddUpdateAppSettings("office365password",
-					SecureCredentials.EncryptString(SecureCredentials.ToSecureString(cred.Password)));
+				return true;
 			}
 			catch
 			{
-				AuthenticateWithOffice365("Invalid Credentials. Try again.");
+				return false;
 			}
 		}
 

@@ -17,7 +17,7 @@ namespace LyncLogger
 {
 	internal class LyncLogger
 	{
-		private static Dictionary<Conversation, EmailMessage> _outlookConversations = new Dictionary<Conversation, EmailMessage>();
+		private static readonly Dictionary<Conversation, EmailMessage> OutlookConversations = new Dictionary<Conversation, EmailMessage>();
 		private const string LogHeader = "// Convestation started with {0} on {1}"; //header of the file
 		private const string LogMiddleHeader = "---- conversation resumed ----"; //middle header of the file
 		private const string LogMessage = "{0} ({1}): {2}"; //msg formating
@@ -32,7 +32,7 @@ namespace LyncLogger
 
 		private static readonly ILog Log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
 
-		public LyncLogger(string folderLog)
+		public static void Run(string folderLog)
 		{
 			_folderLog = new DirectoryInfo(folderLog);
 			_fileLog = Path.Combine(folderLog, "{0}_{1}.log");
@@ -44,7 +44,7 @@ namespace LyncLogger
 		/// <summary>
 		/// Constructor, Listen on new openned conversations
 		/// </summary>
-		public void Run()
+		private static void Run()
 		{
 			try
 			{
@@ -80,6 +80,7 @@ namespace LyncLogger
 					{
 						Log.Info("Conversation already in watching state");
 						Log.Info(handler);
+						NotifyIconSystray.ChangeStatus(true);
 					}
 
 				}
@@ -264,7 +265,7 @@ namespace LyncLogger
 			ewsProxy.Credentials = new NetworkCredential(SettingsManager.ReadSetting("office365username"),
 				SecureCredentials.DecryptString(SettingsManager.ReadSetting("office365password")));
 
-			// Set the properties on the meeting object to create the meeting.
+			
 			message.Subject = $"Conversation with {converation.Participants.First().Contact.GetContactInformation(ContactInformationType.DisplayName)}";
 			
 			message.Sender = new EmailAddress((converation.Participants.First().Contact.GetContactInformation(ContactInformationType.EmailAddresses) as List<object>).First() as string);
@@ -281,7 +282,7 @@ namespace LyncLogger
 			try
 			{
 				message.Save(WellKnownFolderName.ConversationHistory);
-				_outlookConversations[converation] = message;
+				OutlookConversations[converation] = message;
 			}
 			catch
 			{
@@ -291,9 +292,9 @@ namespace LyncLogger
 
 		private static void AppendToOfficeConversation(Conversation converation, string text)
 		{
-			if (_outlookConversations.ContainsKey(converation))
+			if (OutlookConversations.ContainsKey(converation))
 			{
-				EmailMessage message = _outlookConversations[converation];
+				EmailMessage message = OutlookConversations[converation];
 				message.Load();
 				message.Body = new MessageBody(message.Body.Text + text + "<br/>");
 				message.Update(ConflictResolutionMode.AutoResolve);
