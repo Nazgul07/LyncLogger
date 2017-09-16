@@ -10,6 +10,7 @@ using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Threading;
 using Microsoft.Exchange.WebServices.Data;
+using Notifications.Wpf;
 using Conversation = Microsoft.Lync.Model.Conversation.Conversation;
 
 namespace LyncLogger
@@ -94,13 +95,10 @@ namespace LyncLogger
 				SaveAll365Conversations();
 				OutlookConversations.Clear();
 			}
-			catch (LyncClientException lyncClientException)
+			catch (ClientNotFoundException)
 			{
-				if (lyncClientException.Message.Equals(ExceptionLyncNoclient))
-				{
-					Thread.Sleep(DelayRetryAuthentication);
-					Run();
-				}
+				Thread.Sleep(DelayRetryAuthentication);
+				Run();
 			}
 			catch (SystemException systemException)
 			{
@@ -200,10 +198,7 @@ namespace LyncLogger
 				{
 					using (StreamWriter writer = new StreamWriter(stream))
 					{
-						writer.WriteLine(String.Format(LogAudio,
-							(e.NewState == ModalityState.Connected) ? "started" : "ended",
-							DateTime.Now.ToString("HH:mm:ss")
-						));
+						writer.WriteLine(LogAudio, (e.NewState == ModalityState.Connected) ? "started" : "ended", DateTime.Now.ToString("HH:mm:ss"));
 					}
 				}
 			}
@@ -234,6 +229,7 @@ namespace LyncLogger
 			//gets the participant name
 			string name = (string)modality.Participant.Contact.GetContactInformation(ContactInformationType.DisplayName);
 
+
 			//reads the message in its plain text format (automatically converted)
 			string message = e.Text.Trim();
 
@@ -263,8 +259,9 @@ namespace LyncLogger
 			//Create the conversation message
 			var message = new EmailMessage(ewsProxy);
 
-			var cred = new NetworkCredential(SettingsManager.ReadSetting("office365username"),
-				SecureCredentials.DecryptString(SettingsManager.ReadSetting("office365password")));
+			string username = SettingsManager.ReadSetting("office365username");
+			string password = SettingsManager.ReadSetting("office365password");
+			var cred = new NetworkCredential(username, SecureCredentials.DecryptString(password));
 
 			ewsProxy.Credentials = cred;
 			
@@ -294,6 +291,10 @@ namespace LyncLogger
 					UnsavedMessageCount = 0
 				};
 			}
+			else if (!string.IsNullOrEmpty(username) && !string.IsNullOrEmpty(password))
+			{
+				Notifications.Send("Error connecting to Office 365", NotificationType.Error);
+			}
 		}
 
 		private static void AppendTo365Conversation(Conversation converation, string text)
@@ -321,9 +322,13 @@ namespace LyncLogger
 				{
 					message.Save(WellKnownFolderName.ConversationHistory);
 				}
-				message.Update(ConflictResolutionMode.AutoResolve);
+				else
+				{
+					message.Update(ConflictResolutionMode.AutoResolve);
+				}
 				conversation365.UnsavedMessageCount = 0;
 				conversation365.LastSaved = DateTime.Now;
+				Notifications.Send("Conversation synced to Office 365", NotificationType.Information);
 			}
 		}
 

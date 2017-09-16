@@ -1,7 +1,6 @@
 ﻿using System;
 using LyncLogger.SoundManager;
 using System.IO;
-using System.Windows.Forms;
 
 namespace LyncLogger
 {
