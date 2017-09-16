@@ -1,6 +1,7 @@
 The MIT License (MIT)
 
-Copyright (c) 2015 Zougi
+Copyright (c) for portions of project "LyncLogger" are held by Zougi, circa 2015, as part of project "LyncLogger". 
+All other copyright for project "LyncLogger" are held by Colton Correll (Nazgul07), circa 2017.
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
