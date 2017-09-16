@@ -5,7 +5,6 @@ using System.Diagnostics;
 using System.IO;
 using System.ComponentModel;
 using System.Net;
-using log4net;
 using Microsoft.Exchange.WebServices.Data;
 using Microsoft.Win32;
 
@@ -13,8 +12,6 @@ namespace LyncLogger
 {
 	internal class Program
 	{
-		private static readonly ILog Log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
-
 		/// <summary>
 		/// create directory if doesnt exist
 		/// </summary>
@@ -47,8 +44,7 @@ namespace LyncLogger
 			AudioLogger.Instance.Initialize(logFolder);
 
 			//-- -- -- Handles LYNC operations
-			BackgroundWorker bw = new BackgroundWorker();
-			bw.DoWork += (s, e) =>
+			System.Threading.Tasks.Task.Factory.StartNew(() =>
 			{
 				try
 				{
@@ -56,13 +52,10 @@ namespace LyncLogger
 				}
 				catch (Exception ex)
 				{
-					Log.Error("Lync Logger Exception", ex);
-
 					//exit app properly
 					NotifyIconSystray.DisposeNotifyIcon();
 				}
-			};
-			bw.RunWorkerAsync();
+			});
 
 			//prevent the application from exiting right away
 			Application.Run();
@@ -103,7 +96,6 @@ namespace LyncLogger
 			}
 			catch
 			{
-				Log.Error("Authentication to Office 365 failed.");
 				return false;
 			}
 		}

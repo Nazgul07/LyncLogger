@@ -6,10 +6,9 @@ using Microsoft.Lync.Model.Conversation;
 using Microsoft.Lync.Model.Conversation.AudioVideo;
 using System.IO;
 using System.Net;
+using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Threading;
-using System.Reflection;
-using log4net;
 using Microsoft.Exchange.WebServices.Data;
 using Conversation = Microsoft.Lync.Model.Conversation.Conversation;
 
@@ -17,11 +16,12 @@ namespace LyncLogger
 {
 	internal class LyncLogger
 	{
+		private static LyncClient _client = null;
 		private static readonly Dictionary<Conversation, Conversation365> OutlookConversations = new Dictionary<Conversation, Conversation365>();
 		private const string LogHeader = "// Convestation started with {0} on {1}"; //header of the file
 		private const string LogMiddleHeader = "---- conversation resumed ----"; //middle header of the file
 		private const string LogMessage = "{0} ({1}): {2}"; //msg formating
-		private const string LogMessageHTML = "<span style=\"font-size:11px;font-variant:normal;text-transform:none;\"><b>{0}&nbsp;{1}</b></span>:<br/>{2}"; //msg formating
+		private const string LogMessageHtml = "<span style=\"font-size:11px;font-variant:normal;text-transform:none;\"><b>{0}&nbsp;{1}</b></span>:<br/>{2}"; //msg formating
 		private const string LogAudio = "Audio conversation {0} at {1}"; //msg audio started/ended formating
 
 		private const int DelayRetryAuthentication = 20000; // delay before authentication retry (in ms)
@@ -31,16 +31,14 @@ namespace LyncLogger
 		private static string _fileLog;
 		private static string _nameShortener;
 
-		private static readonly ILog Log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
-
-		private static readonly System.Timers.Timer _timer365Save = new System.Timers.Timer(60000);
+		private static readonly System.Timers.Timer Timer365Save = new System.Timers.Timer(60000);
 
 		public static void Run(string folderLog)
 		{
 			_folderLog = new DirectoryInfo(folderLog);
 			_fileLog = Path.Combine(folderLog, "{0}_{1}.log");
 			_nameShortener = SettingsManager.ReadSetting("shortenName");
-			_timer365Save.Elapsed += (sender, args) =>
+			Timer365Save.Elapsed += (sender, args) =>
 			{
 				foreach (var keyPair in OutlookConversations)
 				{
@@ -50,59 +48,45 @@ namespace LyncLogger
 					}
 				}
 			};
-			_timer365Save.Start();
+			Timer365Save.Start();
 			Run();
 		}
 
 		/// <summary>
-		/// Constructor, Listen on new openned conversations
+		/// Constructor, Listen on new opened conversations
 		/// </summary>
 		private static void Run()
 		{
 			try
 			{
 				//Start the conversation
-				LyncClient client = LyncClient.GetClient();
-
-				//handles the states of the logger displayed in the systray
-				client.StateChanged += (s, e) =>
+				if (_client == null)
 				{
-					if (e.NewState == ClientState.SignedOut)
-					{
-						Log.Info("User signed out. Watch for signed in event");
-						NotifyIconSystray.ChangeStatus(false);
-						SaveAll365Conversations();
-						OutlookConversations.Clear();
-						Run();
-					}
-				};
-
-				if (client.State == ClientState.SignedIn)
+					_client = LyncClient.GetClient();
+				}
+				if (_client.State == ClientState.SignedIn)
 				{
+					//handles the states of the logger displayed in the systray
+					_client.StateChanged += ClientOnStateChanged;
+
 					//listen on conversation in order to log messages
-					ConversationManager conversations = client.ConversationManager;
+					ConversationManager conversations = _client.ConversationManager;
 
 					//check our listener is not already registered
 					var handler = typeof(ConversationManager).GetField("ConversationAdded", BindingFlags.NonPublic | BindingFlags.Instance).GetValue(conversations) as Delegate;
 
 					if (handler == null)
 					{
-						Log.Info("watch conversation");
-						conversations.ConversationAdded += conversations_ConversationAdded;
+						conversations.ConversationAdded += Conversations_ConversationAdded;
 						NotifyIconSystray.ChangeStatus(true);
 					}
 					else
 					{
-						Log.Info("Conversation already in watching state");
-						Log.Info(handler);
 						NotifyIconSystray.ChangeStatus(true);
 					}
-
 				}
 				else
 				{
-					Log.Info(
-						$"Not signed in. Watch for signed in event. Retry in {DelayRetryAuthentication / 10} ms");
 					Thread.Sleep(DelayRetryAuthentication / 10);
 					Run();
 				}
@@ -114,28 +98,30 @@ namespace LyncLogger
 			{
 				if (lyncClientException.Message.Equals(ExceptionLyncNoclient))
 				{
-					Log.Info($"Lync Known Exception: no client. Retry in {DelayRetryAuthentication} ms");
 					Thread.Sleep(DelayRetryAuthentication);
 					Run();
-				}
-				else
-				{
-					Log.Warn("Lync Exception", lyncClientException);
 				}
 			}
 			catch (SystemException systemException)
 			{
-				if (IsLyncException(systemException))
+				if (!IsLyncException(systemException))
 				{
-					// Log the exception thrown by the Lync Model API.
-					Log.Warn("Lync Exception", systemException);
-				}
-				else
-				{
-					Log.Warn("Exception: ", systemException);
 					// Rethrow the SystemException which did not come from the Lync Model API.
 					throw;
 				}
+			}
+		}
+
+		private static void ClientOnStateChanged(object s, ClientStateChangedEventArgs e)
+		{
+			if (e.NewState == ClientState.SignedOut)
+			{
+				NotifyIconSystray.ChangeStatus(false);
+				Client client = ((Client) s);
+				client.StateChanged -= ClientOnStateChanged;
+				ConversationManager conversations = client.ConversationManager;
+				conversations.ConversationAdded -= Conversations_ConversationAdded;
+				Run();
 			}
 		}
 
@@ -144,7 +130,7 @@ namespace LyncLogger
 		/// </summary>
 		/// <param name="sender"></param>
 		/// <param name="e"></param>
-		private static void conversations_ConversationAdded(object sender, ConversationManagerEventArgs e)
+		private static void Conversations_ConversationAdded(object sender, ConversationManagerEventArgs e)
 		{
 			String firstContactName = e.Conversation.Participants.Count > 1
 			? e.Conversation.Participants[1].Contact.GetContactInformation(ContactInformationType.DisplayName).ToString()
@@ -180,12 +166,11 @@ namespace LyncLogger
 			{
 				var participant = _e.Participant;
 				InstantMessageModality remoteImModality = (InstantMessageModality)participant.Modalities[ModalityTypes.InstantMessage];
-				
+
 				//detect all messages (including user's)
 				remoteImModality.InstantMessageReceived += (__sender, __e) =>
 				{
-					Log.Info("message event: " + __e.Text);
-					remoteImModality_InstantMessageReceived(__sender, __e, fileLog);
+					RemoteImModality_InstantMessageReceived(__sender, __e, fileLog);
 				};
 			};
 
@@ -194,10 +179,10 @@ namespace LyncLogger
 			//notify call 
 			callImModality.ModalityStateChanged += (_sender, _e) =>
 			{
-				Log.Info("call event: " + _e.NewState);
-				callImModality_ModalityStateChanged(_e, fileLog + ".mp3");
+				CallImModality_ModalityStateChanged(_e, fileLog + ".mp3");
 			};
 		}
+		
 
 		/// <summary>
 		/// log to fileLog the date of the start and end of a call
@@ -205,7 +190,7 @@ namespace LyncLogger
 		/// </summary>
 		/// <param name="e"></param>
 		/// <param name="fileLog"></param>
-		private static void callImModality_ModalityStateChanged(ModalityStateChangedEventArgs e, String fileLog)
+		private static void CallImModality_ModalityStateChanged(ModalityStateChangedEventArgs e, String fileLog)
 		{
 			//write log only on connection or disconnection
 			if (e.NewState == ModalityState.Connected || e.NewState == ModalityState.Disconnected)
@@ -226,7 +211,6 @@ namespace LyncLogger
 			//record conversation
 			if (e.NewState == ModalityState.Connected)
 			{
-				Log.Info("Start recording to " + fileLog);
 				AudioLogger.Instance.Start(fileLog);
 			}
 
@@ -244,7 +228,7 @@ namespace LyncLogger
 		/// <param name="sender"></param>
 		/// <param name="e"></param>
 		/// <param name="fileLog"></param>
-		private static void remoteImModality_InstantMessageReceived(object sender, MessageSentEventArgs e, String fileLog)
+		private static void RemoteImModality_InstantMessageReceived(object sender, MessageSentEventArgs e, String fileLog)
 		{
 			InstantMessageModality modality = (InstantMessageModality)sender;
 			//gets the participant name
@@ -266,7 +250,7 @@ namespace LyncLogger
 				}
 			}
 
-			AppendTo365Conversation(modality.Conversation, string.Format(LogMessageHTML, name, $"{DateTime.Now:h:mm tt}", e.Contents[InstantMessageContentType.Html]));
+			AppendTo365Conversation(modality.Conversation, string.Format(LogMessageHtml, name, $"{DateTime.Now:h:mm tt}", e.Contents[InstantMessageContentType.Html]));
 		}
 
 		private static void Start365Conversation(Conversation converation)
@@ -283,7 +267,7 @@ namespace LyncLogger
 				SecureCredentials.DecryptString(SettingsManager.ReadSetting("office365password")));
 
 			ewsProxy.Credentials = cred;
-
+			
 			if (Program.Validate365Credentials(cred))
 			{
 				message.Body = string.Empty;
@@ -340,8 +324,6 @@ namespace LyncLogger
 				message.Update(ConflictResolutionMode.AutoResolve);
 				conversation365.UnsavedMessageCount = 0;
 				conversation365.LastSaved = DateTime.Now;
-
-				Log.Info($"Office 365 Conversation Saved");
 			}
 		}
 

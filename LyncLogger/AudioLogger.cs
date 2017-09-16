@@ -3,7 +3,6 @@ using LyncLogger.SoundManager;
 using System.IO;
 using System.Windows.Forms;
 using Microsoft.Win32;
-using log4net;
 using System.Reflection;
 
 namespace LyncLogger
@@ -15,8 +14,6 @@ namespace LyncLogger
 		private static readonly string MicFilename = TempFolder + "\\captureMic.wav";
 		private static string _folderLog = "";
 		private static string _fileLog = "";
-
-		private static readonly ILog Log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
 
 		private SoundRecorder _soundRecorder;
 
@@ -53,7 +50,6 @@ namespace LyncLogger
 		{
 			if (!IsAllowedRecording)
 			{
-				Log.Warn("recording not active (known)");
 				return;
 			}
 			_fileLog = fileLog;
@@ -67,9 +63,9 @@ namespace LyncLogger
 
 				_soundRecorder.CaptureMicToWave(MicFilename);
 			}
-			catch (Exception ex)
+			catch
 			{
-				Log.Error("error starting audio recording", ex);
+				// ignored
 			}
 		}
 
@@ -86,28 +82,27 @@ namespace LyncLogger
 				_soundRecorder.UnCaptureSpeakersToWave();
 				_soundRecorder.UnCaptureMicToWave();
 			}
-			catch (Exception ex)
+			catch
 			{
-				Log.Error("error canceling audio recording", ex);
+				// ignored
 			}
 
 			try
 			{
-				Log.Info($"build audio record: {Path.Combine(_folderLog, _fileLog)} :");
 				_soundRecorder.MixerWave(TempFolder, Path.Combine(_folderLog, _fileLog));
 			}
-			catch (Exception ex)
+			catch
 			{
-				Log.Error($"error building audio record file {Path.Combine(_folderLog, _fileLog)} :", ex);
+				// ignored
 			}
 
 			try
 			{
 				Directory.Delete(TempFolder, true);
 			}
-			catch (Exception ex)
+			catch
 			{
-				Log.Error("error deleting record temp folder", ex);
+				// ignored
 			}
 		}
 

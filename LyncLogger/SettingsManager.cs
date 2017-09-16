@@ -1,5 +1,4 @@
-﻿using log4net;
-using System;
+﻿using System;
 using System.Configuration;
 using System.Reflection;
 
@@ -7,8 +6,6 @@ namespace LyncLogger
 {
 	public class SettingsManager
 	{
-		private static readonly ILog Log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
-
 		/// <summary>
 		/// read setting from app.config
 		/// </summary>
@@ -27,7 +24,7 @@ namespace LyncLogger
 			}
 			catch (ConfigurationErrorsException)
 			{
-				Log.Error("Error reading app settings");
+				
 			}
 			return result;
 		}

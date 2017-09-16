@@ -73,8 +73,8 @@ namespace LyncLogger
 			//get icon by its name. Icon must be in the project as embedded resource
 			Assembly assembly = Assembly.GetExecutingAssembly();
 			string ns = assembly.EntryPoint.DeclaringType.Namespace;
-			Stream iconStream = assembly.GetManifestResourceStream($"{ns}.{iconName}");
-			_notifyIcon.Icon = new Icon(iconStream);
+			using (Stream iconStream = assembly.GetManifestResourceStream($"{ns}.{iconName}"))
+				_notifyIcon.Icon = new Icon(iconStream);
 		}
 
 
@@ -110,7 +110,6 @@ namespace LyncLogger
 				DisposeNotifyIcon();
 			}));
 			_notifyIcon.ContextMenu = contextMenu1;
-
 		}
 
 		private static void AuthenticateWithOffice365(MenuItem menu, string message = "")
