@@ -21,7 +21,7 @@ namespace LyncLogger
 		private const string LogHeader = "// Convestation started with {0} on {1}"; //header of the file
 		private const string LogMiddleHeader = "---- conversation resumed ----"; //middle header of the file
 		private const string LogMessage = "{0} ({1}): {2}"; //msg formating
-		private const string LogMessageHtml = "<span style=\"font-size:11px;font-variant:normal;text-transform:none;\"><b>{0}&nbsp;{1}</b></span>:<br/>{2}"; //msg formating
+		private const string LogMessageHtml = "<span style=\"font-size:11px;font-variant:normal;text-transform:none;\"><b>{0}&nbsp;{1}</b></span>:<br/>&nbsp&nbsp{2}"; //msg formating
 		private const string LogAudio = "Audio conversation {0} at {1}"; //msg audio started/ended formating
 
 		private const int DelayRetryAuthentication = 20000; // delay before authentication retry (in ms)
