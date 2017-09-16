@@ -2,8 +2,6 @@
 using LyncLogger.SoundManager;
 using System.IO;
 using System.Windows.Forms;
-using Microsoft.Win32;
-using System.Reflection;
 
 namespace LyncLogger
 {
@@ -104,24 +102,6 @@ namespace LyncLogger
 			{
 				// ignored
 			}
-		}
-
-		/// <summary>
-		/// Activate or Deactivate audio recording
-		/// </summary>
-		internal void Switch()
-		{
-			IsAllowedRecording = !IsAllowedRecording;
-			string status = (IsAllowedRecording ? "Activated" : "Deactivated");
-
-			RegistryKey lyncLoggerKey = Registry.CurrentUser.OpenSubKey("LyncLogger");
-			if (lyncLoggerKey != null)
-			{
-				lyncLoggerKey.SetValue("Audio", status);
-				lyncLoggerKey.Close();
-			}
-
-			MessageBox.Show("Audio logger is " + status);
 		}
 	}
 }

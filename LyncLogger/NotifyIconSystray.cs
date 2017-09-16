@@ -2,11 +2,8 @@
 using System.Diagnostics;
 using System.Drawing;
 using System.IO;
-using System.Net;
 using System.Reflection;
 using System.Windows.Forms;
-using AdysTech.CredentialManager;
-using Microsoft.Exchange.WebServices.Data;
 
 namespace LyncLogger
 {
@@ -15,8 +12,6 @@ namespace LyncLogger
 	/// </summary>
 	internal static class NotifyIconSystray
 	{
-		private const string Enable365 = "Enable Office 365 Integration";
-		private const string Disable365 = "Disable Office 365 Integration";
 		private static NotifyIcon _notifyIcon;
 		public delegate void Status(bool status);
 		private static string _name;
@@ -98,12 +93,6 @@ namespace LyncLogger
 				contextMenu1.MenuItems.AddRange(items);
 			}
 
-			contextMenu1.MenuItems.Add(new MenuItem(Program.Validate365Credentials(new NetworkCredential(SettingsManager.ReadSetting("office365username"),
-				SecureCredentials.DecryptString(SettingsManager.ReadSetting("office365password")))) ? Disable365 : Enable365, (s, e) =>
-			{
-				AuthenticateWithOffice365((MenuItem)s);
-			}));
-
 			contextMenu1.MenuItems.Add(new MenuItem("Quit", (s, e) =>
 			{
 				OnQuit?.Invoke();
@@ -111,38 +100,7 @@ namespace LyncLogger
 			}));
 			_notifyIcon.ContextMenu = contextMenu1;
 		}
-
-		private static void AuthenticateWithOffice365(MenuItem menu, string message = "")
-		{
-			bool save = false;
-			if (menu.Text == Enable365)
-			{
-				var cred = CredentialManager.PromptForCredentials("Office 365", ref save, message,
-					"Credentials for Office 365");
-				if (cred == null) return;
-			
-				if(Program.Validate365Credentials(cred))
-				{ 
-					SettingsManager.AddUpdateAppSettings("office365username", cred.UserName);
-					SettingsManager.AddUpdateAppSettings("office365password",
-						SecureCredentials.EncryptString(SecureCredentials.ToSecureString(cred.Password)));
-					menu.Text = Disable365;
-				}
-				else
-				{
-					AuthenticateWithOffice365(menu, "Invalid Credentials. Try again.");
-				}
-			}
-			else
-			{
-				SettingsManager.AddUpdateAppSettings("office365username", "");
-				SettingsManager.AddUpdateAppSettings("office365password", "");
-				menu.Text = Enable365;
-			}
-		}
-
 		
-
 		public static void DisposeNotifyIcon()
 		{
 			_notifyIcon.Dispose();

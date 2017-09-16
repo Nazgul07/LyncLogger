@@ -1,17 +1,20 @@
 ﻿using System;
-using System.Reflection;
 using System.Windows.Forms;
 using System.Diagnostics;
 using System.IO;
-using System.ComponentModel;
 using System.Net;
+using System.Threading;
+using AdysTech.CredentialManager;
 using Microsoft.Exchange.WebServices.Data;
-using Microsoft.Win32;
+using Task = System.Threading.Tasks.Task;
 
 namespace LyncLogger
 {
 	internal class Program
 	{
+		private const string Enable365 = "Enable Office 365 Integration";
+		private const string Disable365 = "Disable Office 365 Integration";
+
 		/// <summary>
 		/// create directory if doesnt exist
 		/// </summary>
@@ -23,68 +26,69 @@ namespace LyncLogger
 				Directory.CreateDirectory(folder);
 			}
 		}
-
+		private static readonly Mutex Mutex = new Mutex(true, "{d871d1b7-1b3c-4434-b1fa-f7bde92dd8fd}");
+		[STAThread]
 		private static void Main(string[] args)
 		{
-			//folder to log conversations
-			string logFolder = Environment.ExpandEnvironmentVariables(SettingsManager.ReadSetting("logfolder"));
-
-			// create log directory if missing
-			CreateDirectoryIfMissing(logFolder);
-
-			//-- -- -- Add notification icon
-			NotifyIconSystray.AddNotifyIcon("Lync Logger", new MenuItem[] {
-				new MenuItem("Lync History", (s, e) => { Process.Start(logFolder); }),
-				new MenuItem("Switch Audio logger On/Off", (s, e) => {  AudioLogger.Instance.Switch(); })
-			});
-
-			//-- -- -- Handles Sound record operations
-
-			RegisterKey("Software\\LyncLogger", "Audio", "Activated");
-			AudioLogger.Instance.Initialize(logFolder);
-
-			//-- -- -- Handles LYNC operations
-			System.Threading.Tasks.Task.Factory.StartNew(() =>
+			if (Mutex.WaitOne(TimeSpan.Zero, true))
 			{
-				try
-				{
-					LyncLogger.Run(logFolder);
-				}
-				catch (Exception ex)
-				{
-					//exit app properly
-					NotifyIconSystray.DisposeNotifyIcon();
-				}
-			});
+				//folder to log conversations
+				string logFolder = Environment.ExpandEnvironmentVariables(SettingsManager.ReadSetting("logfolder"));
 
-			//prevent the application from exiting right away
-			Application.Run();
+				// create log directory if missing
+				CreateDirectoryIfMissing(logFolder);
+
+				//-- -- -- Handles Sound record operations
+
+				InitializeAudioLoggerStatus();
+				AudioLogger.Instance.Initialize(logFolder);
+
+				//-- -- -- Add notification icon
+				NotifyIconSystray.AddNotifyIcon("Lync Logger", new[]
+				{
+					new MenuItem("Lync History", (s, e) => { Process.Start(logFolder); }),
+					new MenuItem($"Switch Audio logger {(AudioLogger.Instance.IsAllowedRecording ? "Off" : "On")}",
+						(s, e) => { SwitchAudio((MenuItem) s); }),
+					new MenuItem($@"{
+							(Validate365Credentials(new NetworkCredential(SettingsManager.ReadSetting("office365username"),
+								SecureCredentials.DecryptString(SettingsManager.ReadSetting("office365password"))))
+								? "Disable"
+								: "Enable")
+						} Office 365 Integration", (s, e) =>
+					{
+						AuthenticateWithOffice365((MenuItem) s);
+					})
+				});
+
+
+				Task.Factory.StartNew(() =>
+				{
+					try
+					{
+						LyncLogger.Run(logFolder);
+					}
+					catch
+					{
+						//exit app properly
+						NotifyIconSystray.DisposeNotifyIcon();
+					}
+				});
+
+				Application.Run();
+				Mutex.ReleaseMutex();
+			}
 		}
 
 
 		/// <summary>
-		/// Create registry key to keep settings of recording for audio
-		/// If registry key already exists, set AudioLogger
+		/// Set AudioLogger On/Off by checking the current status
 		/// </summary>
-		/// <param name="keyName"></param>
-		/// <param name="valueName"></param>
-		/// <param name="value"></param>
-		private static void RegisterKey(string keyName, string valueName, string value)
+		private static void InitializeAudioLoggerStatus()
 		{
-			RegistryKey key = Registry.CurrentUser;
-			RegistryKey lyncLoggerKey = key.OpenSubKey(keyName);
-			if (lyncLoggerKey != null)
-			{
-				AudioLogger.Instance.IsAllowedRecording = ((string)lyncLoggerKey.GetValue(valueName) == value);
-				lyncLoggerKey.Close();
-			}
-			else
-			{
-				RegistryKey subkey = key.CreateSubKey(keyName);
-				subkey.SetValue(valueName, value);
-				subkey.Close();
-			}
+			string loggerStatus = SettingsManager.ReadSetting("AudioLoggerStatus");
+			AudioLogger.Instance.IsAllowedRecording = loggerStatus.ToUpper() == "ON";
 		}
+
 		public static bool Validate365Credentials(NetworkCredential cred)
 		{
 			try
@@ -98,6 +102,49 @@ namespace LyncLogger
 			{
 				return false;
 			}
+		}
+
+		private static void AuthenticateWithOffice365(MenuItem menu, string message = "")
+		{
+			bool save = false;
+			if (!Validate365Credentials(new NetworkCredential(SettingsManager.ReadSetting("office365username"),
+				SecureCredentials.DecryptString(SettingsManager.ReadSetting("office365password")))))
+			{
+				var cred = CredentialManager.PromptForCredentials("Office 365", ref save, message,
+					"Credentials for Office 365");
+				if (cred == null) return;
+
+				if (Validate365Credentials(cred))
+				{
+					SettingsManager.AddUpdateAppSettings("office365username", cred.UserName);
+					SettingsManager.AddUpdateAppSettings("office365password",
+						SecureCredentials.EncryptString(SecureCredentials.ToSecureString(cred.Password)));
+					menu.Text = Disable365;
+				}
+				else
+				{
+					AuthenticateWithOffice365(menu, "Invalid Credentials. Try again.");
+				}
+			}
+			else
+			{
+				SettingsManager.AddUpdateAppSettings("office365username", "");
+				SettingsManager.AddUpdateAppSettings("office365password", "");
+				menu.Text = Enable365;
+			}
+		}
+
+		/// <summary>
+		/// Activate or Deactivate audio recording
+		/// </summary>
+		private static void SwitchAudio(MenuItem menu)
+		{
+			AudioLogger.Instance.IsAllowedRecording = !AudioLogger.Instance.IsAllowedRecording;
+			string status = (AudioLogger.Instance.IsAllowedRecording ? "On" : "Off");
+
+			SettingsManager.AddUpdateAppSettings("AudioLoggerStatus", status);
+			
+			menu.Text = $"Switch Audio logger {(AudioLogger.Instance.IsAllowedRecording ? "Off" : "On")}";
 		}
 	}
 }
