@@ -63,7 +63,7 @@ namespace LyncLogger
 							Notifications.Enabled = !Notifications.Enabled;
 							((MenuItem) s).Text = $"{(Notifications.Enabled ? "Disable" : "Enable")} Notifications";
 						}),
-					new MenuItem($"{(AudioLogger.Instance.IsAllowedRecording ? "Disable" : "Enable")} Audio Logger ",
+					new MenuItem($"{(AudioLogger.Instance.IsAllowedRecording ? "Disable" : "Enable")} Audio Logging",
 						(s, e) => { SwitchAudio((MenuItem) s); }),
 					new MenuItem($@"{
 							(Validate365Credentials(new NetworkCredential(SettingsManager.ReadSetting("office365username"),
@@ -163,7 +163,7 @@ namespace LyncLogger
 
 			SettingsManager.AddUpdateAppSettings("AudioLoggerStatus", status);
 			
-			menu.Text = $"{(AudioLogger.Instance.IsAllowedRecording ? "Disable" : "Enable")} Audio logger";
+			menu.Text = $"{(AudioLogger.Instance.IsAllowedRecording ? "Disable" : "Enable")} Audio Logging";
 
 			Notifications.Send($"Audio Logging {(AudioLogger.Instance.IsAllowedRecording ? "Enabled" : "Disabled")}", NotificationType.Information);
 		}
