@@ -3,6 +3,7 @@
 
 Logs text and audio conversations on Microsoft Lync & Skype for Business
 
+![alt text](https://raw.githubusercontent.com/Nazgul07/LyncLogger/master/screenshot.png "ScreenShot")
 
 ## Description
 
