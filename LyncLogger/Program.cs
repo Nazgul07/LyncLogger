@@ -50,14 +50,20 @@ namespace LyncLogger
 				//-- -- -- Add notification icon
 				NotifyIconSystray.AddNotifyIcon("Lync Logger", new[]
 				{
-					new MenuItem("Lync History", (s, e) => { Process.Start(logFolder); }),
-					new MenuItem($"Turn Notifications {(Notifications.Enabled ? "Off" : "On")}",
+					new MenuItem("View Lync History Folder", (s, e) => { Process.Start(logFolder); }),
+					new MenuItem($"{(LyncLogger.TextLoggingEnabled ? "Disable" : "Enable")} Text File Logging",
+						(s, e) =>
+						{
+							LyncLogger.TextLoggingEnabled = !LyncLogger.TextLoggingEnabled;
+							((MenuItem) s).Text = $"{(LyncLogger.TextLoggingEnabled ? "Disable" : "Enable")} Text File Logging";
+						}),
+					new MenuItem($"{(Notifications.Enabled ? "Disable" : "Enable")} Notifications",
 						(s, e) =>
 						{
 							Notifications.Enabled = !Notifications.Enabled;
-							((MenuItem) s).Text = $"Turn Notifications {(Notifications.Enabled ? "Off" : "On")}";
+							((MenuItem) s).Text = $"{(Notifications.Enabled ? "Disable" : "Enable")} Notifications";
 						}),
-					new MenuItem($"Switch Audio Logger {(AudioLogger.Instance.IsAllowedRecording ? "Off" : "On")}",
+					new MenuItem($"{(AudioLogger.Instance.IsAllowedRecording ? "Disable" : "Enable")} Audio Logger ",
 						(s, e) => { SwitchAudio((MenuItem) s); }),
 					new MenuItem($@"{
 							(Validate365Credentials(new NetworkCredential(SettingsManager.ReadSetting("office365username"),
@@ -157,7 +163,7 @@ namespace LyncLogger
 
 			SettingsManager.AddUpdateAppSettings("AudioLoggerStatus", status);
 			
-			menu.Text = $"Switch Audio logger {(AudioLogger.Instance.IsAllowedRecording ? "Off" : "On")}";
+			menu.Text = $"{(AudioLogger.Instance.IsAllowedRecording ? "Disable" : "Enable")} Audio logger";
 
 			Notifications.Send($"Audio Logging {(AudioLogger.Instance.IsAllowedRecording ? "Enabled" : "Disabled")}", NotificationType.Information);
 		}

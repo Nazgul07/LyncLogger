@@ -8,6 +8,7 @@ using System.IO;
 using System.Net;
 using System.Reflection;
 using System.Runtime.InteropServices;
+using System.Text;
 using System.Threading;
 using Microsoft.Exchange.WebServices.Data;
 using Notifications.Wpf;
@@ -17,6 +18,10 @@ namespace LyncLogger
 {
 	internal class LyncLogger
 	{
+		public static bool TextLoggingEnabled {
+			get => SettingsManager.ReadSetting("TextLogging").ToUpper() == "ON";
+			set => SettingsManager.AddUpdateAppSettings("TextLogging", value ? "On" : "Off");
+		}
 		private static LyncClient _client = null;
 		private static readonly Dictionary<Conversation, Conversation365> OutlookConversations = new Dictionary<Conversation, Conversation365>();
 		private const string LogHeader = "// Convestation started with {0} on {1}"; //header of the file
@@ -148,11 +153,14 @@ namespace LyncLogger
 				logHeader = String.Format(LogMiddleHeader);
 			}
 
-			using (FileStream stream = File.Open(fileLog, FileMode.Append, FileAccess.Write, FileShare.ReadWrite))
+			if (TextLoggingEnabled)
 			{
-				using (StreamWriter writer = new StreamWriter(stream))
+				using (FileStream stream = File.Open(fileLog, FileMode.Append, FileAccess.Write, FileShare.ReadWrite))
 				{
-					writer.WriteLine(logHeader);
+					using (StreamWriter writer = new StreamWriter(stream))
+					{
+						writer.WriteLine(logHeader);
+					}
 				}
 			}
 
@@ -190,19 +198,22 @@ namespace LyncLogger
 		/// <param name="fileLog"></param>
 		private static void CallImModality_ModalityStateChanged(ModalityStateChangedEventArgs e, String fileLog)
 		{
-			//write log only on connection or disconnection
-			if (e.NewState == ModalityState.Connected || e.NewState == ModalityState.Disconnected)
+			if (TextLoggingEnabled)
 			{
-				//write start/end info to log
-				using (FileStream stream = File.Open(fileLog, FileMode.Append, FileAccess.Write, FileShare.ReadWrite))
+				//write log only on connection or disconnection
+				if (e.NewState == ModalityState.Connected || e.NewState == ModalityState.Disconnected)
 				{
-					using (StreamWriter writer = new StreamWriter(stream))
+					//write start/end info to log
+					using (FileStream stream = File.Open(fileLog, FileMode.Append, FileAccess.Write, FileShare.ReadWrite))
 					{
-						writer.WriteLine(LogAudio, (e.NewState == ModalityState.Connected) ? "started" : "ended", DateTime.Now.ToString("HH:mm:ss"));
+						using (StreamWriter writer = new StreamWriter(stream))
+						{
+							writer.WriteLine(LogAudio, (e.NewState == ModalityState.Connected) ? "started" : "ended",
+								DateTime.Now.ToString("HH:mm:ss"));
+						}
 					}
 				}
 			}
-
 			//record conversation
 			if (e.NewState == ModalityState.Connected)
 			{
@@ -233,16 +244,19 @@ namespace LyncLogger
 			//reads the message in its plain text format (automatically converted)
 			string message = e.Text.Trim();
 
-			//write message to log
-			using (FileStream stream = File.Open(fileLog, FileMode.Append, FileAccess.Write, FileShare.ReadWrite))
+			if (TextLoggingEnabled)
 			{
-				using (StreamWriter writer = new StreamWriter(stream))
+				//write message to log
+				using (FileStream stream = File.Open(fileLog, FileMode.Append, FileAccess.Write, FileShare.ReadWrite))
 				{
-					if (name.Contains(_nameShortener))
+					using (StreamWriter writer = new StreamWriter(stream))
 					{
-						name = name.Substring(name.IndexOf(_nameShortener) + _nameShortener.Length);
+						if (name.Contains(_nameShortener))
+						{
+							name = name.Substring(name.IndexOf(_nameShortener) + _nameShortener.Length);
+						}
+						writer.WriteLine(LogMessage, name, $"{DateTime.Now:hh:mm:ss tt}", message);
 					}
-					writer.WriteLine(LogMessage, name, $"{DateTime.Now:hh:mm:ss tt}", message);
 				}
 			}
 
@@ -251,11 +265,9 @@ namespace LyncLogger
 
 		private static void Start365Conversation(Conversation converation)
 		{
-
 			//Connect to exchange
 			var ewsProxy = new ExchangeService() { Url = new Uri("https://outlook.office365.com/ews/exchange.asmx") };
-
-
+			
 			//Create the conversation message
 			var message = new EmailMessage(ewsProxy);
 
@@ -268,18 +280,9 @@ namespace LyncLogger
 			if (Program.Validate365Credentials(cred))
 			{
 				message.Body = string.Empty;
-				message.Subject =
-					$"Conversation with {converation.Participants.First().Contact.GetContactInformation(ContactInformationType.DisplayName)}";
-
-				message.Sender = new EmailAddress((converation.Participants.First().Contact
-					.GetContactInformation(ContactInformationType.EmailAddresses) as List<object>).First() as string);
-				foreach (Participant participant in converation.Participants)
-				{
-					message.ToRecipients.Add(
-						(participant.Contact.GetContactInformation(ContactInformationType.EmailAddresses) as List<object>)
-						.First() as string);
-				}
-
+				
+				message.Sender = new EmailAddress(((converation.Properties[ConversationProperty.Inviter] as Microsoft.Lync.Model.Contact).GetContactInformation(ContactInformationType.EmailAddresses) as List<object>).First() as string);
+			
 				ExtendedPropertyDefinition extendedPropertyDefinition =
 					new ExtendedPropertyDefinition(3591, MapiPropertyType.Integer);
 				message.SetExtendedProperty(extendedPropertyDefinition, 1); // sets the message as a non-draft
@@ -304,6 +307,26 @@ namespace LyncLogger
 				Conversation365 conversation365 = OutlookConversations[converation];
 				EmailMessage message = conversation365.Message;
 				message.Body = new MessageBody(message.Body.Text + text + "<br/>");
+				StringBuilder subject = new StringBuilder();
+				subject.Append("Conversation with ");
+
+				foreach (Participant participant in converation.Participants)
+				{
+					if (!participant.IsSelf)
+					{
+						subject.Append(participant.Contact.GetContactInformation(ContactInformationType.DisplayName));
+						if (converation.Participants.IndexOf(participant) < converation.Participants.Count - 1)
+						{
+							subject.Append(", ");
+						}
+					}
+					string email = (participant.Contact.GetContactInformation(ContactInformationType.EmailAddresses) as List<object>).First() as string;
+					if (message.ToRecipients.All(x => x.Address != email))
+					{
+						message.ToRecipients.Add(email);
+					}
+				}
+				message.Subject = subject.ToString();
 
 				if (conversation365.UnsavedMessageCount++ == 25)
 				{
