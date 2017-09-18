@@ -1,9 +1,6 @@
 # Lync Logger
 
-
 Logs text and audio conversations on Microsoft Lync & Skype for Business
-
-![alt text](https://raw.githubusercontent.com/Nazgul07/LyncLogger/master/screenshot.png "ScreenShot")
 
 ## Description
 
@@ -11,6 +8,7 @@ Start the program to begin to log your Lync conversations.
 This program adds an icon in the system tray bar.
 Icon is green if logger is active. To activate the logger, just connect to Lync or Skype for Business.
 Right-click on the notification tray icon brings up a menu. You can access the history folder from there or close the program
+![alt text](https://raw.githubusercontent.com/Nazgul07/LyncLogger/master/screenshot.png "ScreenShot")
 
 ## Office 365 Integration
 You can enter your Office 365 Credentials to have your conversations saved to your Conversation History folder (useful if your organization disables Conversation History). Your password is stored Encrypted using the "System.Security.Cryptography.ProtectedData" class.
