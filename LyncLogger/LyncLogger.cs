@@ -10,8 +10,12 @@ using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
+using System.Windows.Forms;
+using HtmlAgilityPack;
 using Microsoft.Exchange.WebServices.Data;
 using Notifications.Wpf;
+using RtfPipe;
+using RtfPipe.Support;
 using Conversation = Microsoft.Lync.Model.Conversation.Conversation;
 
 namespace LyncLogger
@@ -269,7 +273,28 @@ namespace LyncLogger
 				}
 			}
 
-			AppendTo365Conversation(modality.Conversation, string.Format(LogMessageHtml, name, $"{DateTime.Now:h:mm tt}", e.Contents[InstantMessageContentType.Html]));
+			if (e.Contents.ContainsKey(InstantMessageContentType.Html))
+			{
+				message = e.Contents[InstantMessageContentType.Html];
+			}
+			else if (e.Contents.ContainsKey(InstantMessageContentType.RichText))
+			{
+				message = e.Contents[InstantMessageContentType.RichText];
+				HtmlAgilityPack.HtmlDocument doc = new HtmlAgilityPack.HtmlDocument();
+				doc.LoadHtml(Rtf.ToHtml(message));
+				message = string.Empty;
+				List<HtmlNode> paragraphs = doc.DocumentNode.SelectNodes("//body/p").ToList();
+				foreach (HtmlNode paragraph in paragraphs)
+				{
+					message += paragraph.InnerHtml;
+					if (paragraphs.IndexOf(paragraph) < paragraphs.Count - 1)
+					{
+						message += "<br/></br/>";
+					}
+				}
+			}
+
+			AppendTo365Conversation(modality.Conversation, string.Format(LogMessageHtml, name, $"{DateTime.Now:h:mm tt}", message));
 		}
 
 		private static void Start365Conversation(Conversation converation)
@@ -295,6 +320,7 @@ namespace LyncLogger
 				ExtendedPropertyDefinition extendedPropertyDefinition =
 					new ExtendedPropertyDefinition(3591, MapiPropertyType.Integer);
 				message.SetExtendedProperty(extendedPropertyDefinition, 1); // sets the message as a non-draft
+				
 
 				OutlookConversations[converation] = new Conversation365
 				{
@@ -346,23 +372,26 @@ namespace LyncLogger
 
 		private static void Save365Conversation(Conversation converation)
 		{
-			if (OutlookConversations.ContainsKey(converation) )
+			if (OutlookConversations.ContainsKey(converation))
 			{
 				Conversation365 conversation365 = OutlookConversations[converation];
-				EmailMessage message = conversation365.Message;
-				if (!string.IsNullOrEmpty(message.Body.Text))
+				if (conversation365.UnsavedMessageCount > 0)
 				{
-					if (message.Id == null)
+					EmailMessage message = conversation365.Message;
+					if (!string.IsNullOrEmpty(message.Body.Text))
 					{
-						message.Save(WellKnownFolderName.ConversationHistory);
+						if (message.Id == null)
+						{
+							message.Save(WellKnownFolderName.ConversationHistory);
+						}
+						else
+						{
+							message.Update(ConflictResolutionMode.AutoResolve);
+						}
+						conversation365.UnsavedMessageCount = 0;
+						conversation365.LastSaved = DateTime.Now;
+						Notifications.Send("Conversation synced to Office 365", NotificationType.Information);
 					}
-					else
-					{
-						message.Update(ConflictResolutionMode.AutoResolve);
-					}
-					conversation365.UnsavedMessageCount = 0;
-					conversation365.LastSaved = DateTime.Now;
-					Notifications.Send("Conversation synced to Office 365", NotificationType.Information);
 				}
 			}
 		}
