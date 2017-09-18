@@ -17,14 +17,22 @@ namespace LyncLogger
 		{
 			if (Enabled)
 			{
-				Dispatcher.Invoke(() => { 
-					NotificationManager notificationManager = new NotificationManager();
-					notificationManager.Show(new NotificationContent
+				Dispatcher.Invoke(() =>
+				{
+					try
 					{
-						Title = "Lync Logger",
-						Message = message,
-						Type = type,
-					}, "", TimeSpan.FromMilliseconds(2500));
+						NotificationManager notificationManager = new NotificationManager();
+						notificationManager.Show(new NotificationContent
+						{
+							Title = "Lync Logger",
+							Message = message,
+							Type = type,
+						}, "", TimeSpan.FromMilliseconds(2500));
+					}
+					catch
+					{
+						//ignore
+					}
 				});
 			}
 		}

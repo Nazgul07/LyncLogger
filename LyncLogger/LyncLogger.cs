@@ -109,13 +109,9 @@ namespace LyncLogger
 				Thread.Sleep(DelayRetryAuthentication);
 				Run();
 			}
-			catch (SystemException systemException)
+			catch
 			{
-				if (!IsLyncException(systemException))
-				{
-					// Rethrow the SystemException which did not come from the Lync Model API.
-					throw;
-				}
+				//ignore
 			}
 		}
 
@@ -383,27 +379,6 @@ namespace LyncLogger
 			{
 				Save365Conversation(keyPair.Key);
 			}
-		}
-
-		/// <summary>
-		/// Identify if a particular SystemException is one of the exceptions which may be thrown
-		/// by the Lync Model API.
-		/// </summary>
-		/// <param name="ex"></param>
-		/// <returns></returns>
-		private static bool IsLyncException(SystemException ex)
-		{
-			return
-				ex is NotImplementedException ||
-				ex is ArgumentException ||
-				ex is NullReferenceException ||
-				ex is NotSupportedException ||
-				ex is IndexOutOfRangeException ||
-				ex is InvalidOperationException ||
-				ex is TypeLoadException ||
-				ex is TypeInitializationException ||
-				ex is InvalidComObjectException ||
-				ex is InvalidCastException;
 		}
 	}
 }
