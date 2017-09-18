@@ -7,7 +7,7 @@ Logs text and audio conversations on Microsoft Lync & Skype for Business
 Start the program to begin to log your Lync conversations.
 This program adds an icon in the system tray bar.
 Icon is green if logger is active. To activate the logger, just connect to Lync or Skype for Business.
-Right-click on the notification tray icon brings up a menu. You can access the history folder from there or close the program
+Right-click on the notification tray icon brings up a menu. You can access the history folder from there or close the program.
 ![alt text](https://raw.githubusercontent.com/Nazgul07/LyncLogger/master/screenshot.png "ScreenShot")
 
 ## Office 365 Integration
@@ -22,7 +22,7 @@ https://github.com/Nazgul07/LyncLogger/releases
 
 ## Notes
 
-Tested on Skype for Business 2016 but should be compatible with Lync 2013
+Tested on Skype for Business 2016 but should be compatible with Lync 2013.
 
 To start the program automaticaly at startup you can put a shorcut in the folder "C:\ProgramData\Microsoft\Windows\Start Menu\Programs\Startup"
 
