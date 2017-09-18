@@ -165,6 +165,15 @@ namespace LyncLogger
 			}
 
 			Conversation conv = e.Conversation;
+			conv.StateChanged += (o, args) =>
+			{
+				if (args.NewState == ConversationState.Terminated)
+				{
+					Conversation conversation = o as Conversation;
+					Save365Conversation(conversation);
+					OutlookConversations.Remove(conversation);
+				}
+			};
 			Start365Conversation(conv);
 
 			//detect all participant (including user)
@@ -337,21 +346,24 @@ namespace LyncLogger
 
 		private static void Save365Conversation(Conversation converation)
 		{
-			if (OutlookConversations.ContainsKey(converation))
+			if (OutlookConversations.ContainsKey(converation) )
 			{
 				Conversation365 conversation365 = OutlookConversations[converation];
 				EmailMessage message = conversation365.Message;
-				if (message.Id == null)
+				if (!string.IsNullOrEmpty(message.Body.Text))
 				{
-					message.Save(WellKnownFolderName.ConversationHistory);
+					if (message.Id == null)
+					{
+						message.Save(WellKnownFolderName.ConversationHistory);
+					}
+					else
+					{
+						message.Update(ConflictResolutionMode.AutoResolve);
+					}
+					conversation365.UnsavedMessageCount = 0;
+					conversation365.LastSaved = DateTime.Now;
+					Notifications.Send("Conversation synced to Office 365", NotificationType.Information);
 				}
-				else
-				{
-					message.Update(ConflictResolutionMode.AutoResolve);
-				}
-				conversation365.UnsavedMessageCount = 0;
-				conversation365.LastSaved = DateTime.Now;
-				Notifications.Send("Conversation synced to Office 365", NotificationType.Information);
 			}
 		}
 
