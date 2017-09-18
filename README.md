@@ -1,6 +1,6 @@
 # Lync Logger
 
-Logs text and audio conversations on Microsoft Lync & Skype for Business
+Logs text conversations on Microsoft Lync & Skype for Business
 
 ## Description
 
