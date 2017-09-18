@@ -41,12 +41,7 @@ namespace LyncLogger
 
 				// create log directory if missing
 				CreateDirectoryIfMissing(logFolder);
-
-				//-- -- -- Handles Sound record operations
-
-				InitializeAudioLoggerStatus();
-				AudioLogger.Instance.Initialize(logFolder);
-
+				
 				//-- -- -- Add notification icon
 				NotifyIconSystray.AddNotifyIcon("Lync Logger", new[]
 				{
@@ -63,8 +58,6 @@ namespace LyncLogger
 							Notifications.Enabled = !Notifications.Enabled;
 							((MenuItem) s).Text = $"{(Notifications.Enabled ? "Disable" : "Enable")} Notifications";
 						}),
-					new MenuItem($"{(AudioLogger.Instance.IsAllowedRecording ? "Disable" : "Enable")} Audio Logging",
-						(s, e) => { SwitchAudio((MenuItem) s); }),
 					new MenuItem($@"{
 							(Validate365Credentials(new NetworkCredential(SettingsManager.ReadSetting("office365username"),
 								SecureCredentials.DecryptString(SettingsManager.ReadSetting("office365password"))))
@@ -94,17 +87,7 @@ namespace LyncLogger
 				Mutex.ReleaseMutex();
 			}
 		}
-
-
-		/// <summary>
-		/// Set AudioLogger On/Off by checking the current status
-		/// </summary>
-		private static void InitializeAudioLoggerStatus()
-		{
-			string loggerStatus = SettingsManager.ReadSetting("AudioLoggerStatus");
-			AudioLogger.Instance.IsAllowedRecording = loggerStatus.ToUpper() == "ON";
-		}
-
+		
 		public static bool Validate365Credentials(NetworkCredential cred)
 		{
 			try
@@ -151,21 +134,6 @@ namespace LyncLogger
 				menu.Text = Enable365;
 				Notifications.Send("Office 365 Integration Disabled", NotificationType.Information);
 			}
-		}
-
-		/// <summary>
-		/// Activate or Deactivate audio recording
-		/// </summary>
-		private static void SwitchAudio(MenuItem menu)
-		{
-			AudioLogger.Instance.IsAllowedRecording = !AudioLogger.Instance.IsAllowedRecording;
-			string status = (AudioLogger.Instance.IsAllowedRecording ? "On" : "Off");
-
-			SettingsManager.AddUpdateAppSettings("AudioLoggerStatus", status);
-			
-			menu.Text = $"{(AudioLogger.Instance.IsAllowedRecording ? "Disable" : "Enable")} Audio Logging";
-
-			Notifications.Send($"Audio Logging {(AudioLogger.Instance.IsAllowedRecording ? "Enabled" : "Disabled")}", NotificationType.Information);
 		}
 	}
 }

@@ -192,14 +192,6 @@ namespace LyncLogger
 					RemoteImModality_InstantMessageReceived(__sender, __e, fileLog);
 				};
 			};
-
-			//get audio conversation informations about user (not the other participants)
-			AVModality callImModality = (AVModality)conv.Participants[0].Modalities[ModalityTypes.AudioVideo];
-			//notify call 
-			callImModality.ModalityStateChanged += (_sender, _e) =>
-			{
-				CallImModality_ModalityStateChanged(_e, fileLog + ".mp3");
-			};
 		}
 		
 
@@ -226,17 +218,6 @@ namespace LyncLogger
 						}
 					}
 				}
-			}
-			//record conversation
-			if (e.NewState == ModalityState.Connected)
-			{
-				AudioLogger.Instance.Start(fileLog);
-			}
-
-			//end recording
-			if (e.NewState == ModalityState.Disconnected)
-			{
-				AudioLogger.Instance.Stop();
 			}
 		}
 
