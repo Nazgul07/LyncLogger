@@ -11,7 +11,7 @@ Right-click on the notification tray icon brings up a menu. You can access the h
 ![alt text](https://raw.githubusercontent.com/Nazgul07/LyncLogger/master/screenshot.png "ScreenShot")
 
 ## Office 365 Integration
-You can enter your Office 365 Credentials to have your conversations saved to your Conversation History folder (useful if your organization disables Conversation History). Your password is stored Encrypted using the "System.Security.Cryptography.ProtectedData" class.
+You can enter your Office 365 Credentials to have your conversations saved to your Conversation History folder (useful if your organization disables Conversation History). Your password is stored Encrypted in the LyncLogger.exe.config using the "System.Security.Cryptography.ProtectedData" class.
 
 
 ## Download
