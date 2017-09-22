@@ -53,6 +53,12 @@ namespace LyncLogger
 							((MenuItem) s).Text = $"{(LyncLogger.TextLoggingEnabled ? "Disable" : "Enable")} Text File Logging";
 							Notifications.Send($"Text File Logging {(LyncLogger.TextLoggingEnabled ? "Disabled" : "Enabled")}", NotificationType.Information);
 						}),
+					new MenuItem($"{(Notifications.HyperlinksEnabled ? "Disable" : "Enable")} Hyperlink Notifications",
+						(s, e) =>
+						{
+							Notifications.HyperlinksEnabled = !Notifications.HyperlinksEnabled;
+							((MenuItem) s).Text = $"{(Notifications.HyperlinksEnabled ? "Disable" : "Enable")} Hyperlink Notifications";
+						}),
 					new MenuItem($"{(Notifications.Enabled ? "Disable" : "Enable")} Notifications",
 						(s, e) =>
 						{

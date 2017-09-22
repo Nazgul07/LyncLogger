@@ -9,6 +9,7 @@ using System.Net;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Windows.Forms;
 using HtmlAgilityPack;
@@ -233,6 +234,23 @@ namespace LyncLogger
 
 			//reads the message in its plain text format (automatically converted)
 			string message = e.Text.Trim();
+
+
+
+			//web hyperlinks
+			foreach (var match in Regex.Matches(message,
+				@"((http|ftp|https):\/\/[\w\-_]+(\.[\w\-_]+)+([\w\-\.,@?^=%&amp;:/~\+#]*[\w\-\@?^=%&amp;/~\+#])?)"))
+			{
+				Notifications.SendHyperlink(match.ToString());
+			}
+			//unc paths
+			foreach (var match in Regex.Matches(message,
+				@"\\\\[a-zA-Z0-9\.\-_]{1,}(\\[a-zA-Z0-9\-_\s]{1,}){1,}[\$]{0,1}"))
+			{
+				Notifications.SendHyperlink(match.ToString());
+			}
+
+
 
 			if (TextLoggingEnabled)
 			{
