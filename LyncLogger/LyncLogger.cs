@@ -3,20 +3,16 @@ using System.Collections.Generic;
 using System.Linq;
 using Microsoft.Lync.Model;
 using Microsoft.Lync.Model.Conversation;
-using Microsoft.Lync.Model.Conversation.AudioVideo;
 using System.IO;
 using System.Net;
 using System.Reflection;
-using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
-using System.Windows.Forms;
 using HtmlAgilityPack;
 using Microsoft.Exchange.WebServices.Data;
 using Notifications.Wpf;
 using RtfPipe;
-using RtfPipe.Support;
 using Conversation = Microsoft.Lync.Model.Conversation.Conversation;
 
 namespace LyncLogger
@@ -234,9 +230,7 @@ namespace LyncLogger
 
 			//reads the message in its plain text format (automatically converted)
 			string message = e.Text.Trim();
-
-
-
+			
 			//web hyperlinks
 			foreach (var match in Regex.Matches(message,
 				@"((http|ftp|https):\/\/[\w\-_]+(\.[\w\-_]+)+([\w\-\.,@?^=%&amp;:/~\+#]*[\w\-\@?^=%&amp;/~\+#])?)"))
@@ -249,9 +243,7 @@ namespace LyncLogger
 			{
 				Notifications.SendHyperlink(match.ToString());
 			}
-
-
-
+			
 			if (TextLoggingEnabled)
 			{
 				//write message to log

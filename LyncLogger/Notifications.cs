@@ -24,38 +24,64 @@ namespace LyncLogger
 		{
 			if (Enabled)
 			{
-				Dispatcher.Invoke(() =>
-				{
-					try
-					{
-						NotificationManager notificationManager = new NotificationManager();
-						notificationManager.Show(new NotificationContent
-						{
-							Title = "Lync Logger",
-							Message = message,
-							Type = type,
-						}, "", TimeSpan.FromMilliseconds(2500));
-					}
-					catch
-					{
-						//ignore
-					}
-				});
+				SendNoCheck(message, type);
 			}
+		}
+
+		private static void SendNoCheck(string message, NotificationType type)
+		{
+			Dispatcher.Invoke(() =>
+			{
+				try
+				{
+					NotificationManager notificationManager = new NotificationManager();
+					notificationManager.Show(new NotificationContent
+					{
+						Title = "Lync Logger",
+						Message = message,
+						Type = type,
+					}, "", TimeSpan.FromMilliseconds(2500));
+				}
+				catch
+				{
+					//ignore
+				}
+			});
 		}
 
 		internal static void SendHyperlink(string link)
 		{
 			if (HyperlinksEnabled)
 			{
-				Dispatcher.Invoke(() => {
-					NotificationManager notificationManager = new NotificationManager();
-					notificationManager.Show(new NotificationContent
+				try
+				{
+					Dispatcher.Invoke(() =>
 					{
-						Title = "Lync Logger Hyperlink",
-						Message = link,
-					}, "", TimeSpan.FromMilliseconds(Convert.ToInt16(SettingsManager.ReadSetting("HyperlinkNotificationsTimeout")) * 1000), () => { Process.Start(link); });
-				});
+						NotificationManager notificationManager = new NotificationManager();
+						notificationManager.Show(new NotificationContent
+							{
+								Title = "Lync Logger Hyperlink",
+								Message = link,
+							}, "",
+							TimeSpan.FromMilliseconds(Convert.ToInt16(SettingsManager.ReadSetting("HyperlinkNotificationsTimeout")) * 1000),
+							() =>
+							{
+								System.Threading.Tasks.Task.Factory.StartNew(() => { 
+									try { 
+										Process.Start(link);
+									}
+									catch (Exception e)
+									{
+										SendNoCheck(e.Message, NotificationType.Error);
+								}
+								});
+							});
+					});
+				}
+				catch
+				{
+					//ignore
+				}
 			}
 		}
 	}
