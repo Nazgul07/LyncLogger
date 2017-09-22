@@ -14,7 +14,7 @@ Right-click on the notification tray icon brings up a menu. You can access the h
 You can enter your Office 365 Credentials to have your conversations saved to your Conversation History folder (useful if your organization disables Conversation History). Your password is stored Encrypted in the LyncLogger.exe.config using the "System.Security.Cryptography.ProtectedData" class.
 
 ## Hyperlink Notifications
-You can enable clickable notifications when hyperlinks are received (useful if your organization disables clickable hyperlinks).
+You can enable clickable hyperlink notifications when hyperlinks are received (useful if your organization disables clickable hyperlinks).
 
 ## Download
 
