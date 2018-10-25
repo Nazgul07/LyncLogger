@@ -51,7 +51,7 @@ namespace LyncLogger
 						{
 							LyncLogger.TextLoggingEnabled = !LyncLogger.TextLoggingEnabled;
 							((MenuItem) s).Text = $"{(LyncLogger.TextLoggingEnabled ? "Disable" : "Enable")} Text File Logging";
-							Notifications.Send($"Text File Logging {(LyncLogger.TextLoggingEnabled ? "Disabled" : "Enabled")}", NotificationType.Information);
+							Notifications.Send($"Text File Logging {(LyncLogger.TextLoggingEnabled ? "Enabled" : "Disabled")}", NotificationType.Information);
 						}),
 					new MenuItem($"{(Notifications.HyperlinksEnabled ? "Disable" : "Enable")} Hyperlink Notifications",
 						(s, e) =>

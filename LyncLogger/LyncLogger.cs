@@ -85,12 +85,8 @@ namespace LyncLogger
 					if (handler == null)
 					{
 						conversations.ConversationAdded += Conversations_ConversationAdded;
-						NotifyIconSystray.ChangeStatus(true);
 					}
-					else
-					{
-						NotifyIconSystray.ChangeStatus(true);
-					}
+					NotifyIconSystray.ChangeStatus(true);
 				}
 				else
 				{
@@ -132,6 +128,21 @@ namespace LyncLogger
 		/// <param name="e"></param>
 		private static void Conversations_ConversationAdded(object sender, ConversationManagerEventArgs e)
 		{
+			void WireUpParticipant(Participant participant, string s)
+			{
+				InstantMessageModality remoteImModality =
+					(InstantMessageModality) participant.Modalities.FirstOrDefault(x=> x.Key == ModalityTypes.InstantMessage).Value;
+				var handler = typeof(InstantMessageModality).GetField("InstantMessageReceived", BindingFlags.NonPublic | BindingFlags.Instance).GetValue(remoteImModality) as Delegate;
+				if (handler == null)
+				{
+					//detect all messages (including user's)
+					remoteImModality.InstantMessageReceived += (__sender, __e) =>
+					{
+						RemoteImModality_InstantMessageReceived(__sender, __e, s);
+					};
+				}
+			}
+
 			String firstContactName = e.Conversation.Participants.Count > 1
 			? e.Conversation.Participants[1].Contact.GetContactInformation(ContactInformationType.DisplayName).ToString()
 			: "meet now";
@@ -173,17 +184,15 @@ namespace LyncLogger
 			};
 			Start365Conversation(conv);
 
+			foreach (Participant participant in conv.Participants)
+			{
+				WireUpParticipant(participant, fileLog);
+			}
 			//detect all participant (including user)
 			conv.ParticipantAdded += (_sender, _e) =>
 			{
 				var participant = _e.Participant;
-				InstantMessageModality remoteImModality = (InstantMessageModality)participant.Modalities[ModalityTypes.InstantMessage];
-
-				//detect all messages (including user's)
-				remoteImModality.InstantMessageReceived += (__sender, __e) =>
-				{
-					RemoteImModality_InstantMessageReceived(__sender, __e, fileLog);
-				};
+				WireUpParticipant(participant, fileLog);
 			};
 		}
 		
@@ -304,8 +313,7 @@ namespace LyncLogger
 			if (Program.Validate365Credentials(cred))
 			{
 				message.Body = string.Empty;
-				
-				message.Sender = new EmailAddress(((converation.Properties[ConversationProperty.Inviter] as Microsoft.Lync.Model.Contact).GetContactInformation(ContactInformationType.EmailAddresses) as List<object>).First() as string);
+				message.Sender = new EmailAddress((((converation.Properties[ConversationProperty.Inviter] as Microsoft.Lync.Model.Contact)?.GetContactInformation(ContactInformationType.EmailAddresses) as List<object>)?.First() ?? (converation.SelfParticipant.Contact.GetContactInformation(ContactInformationType.EmailAddresses) as List<object>).First()) as string);
 			
 				ExtendedPropertyDefinition extendedPropertyDefinition =
 					new ExtendedPropertyDefinition(3591, MapiPropertyType.Integer);
