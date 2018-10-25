@@ -128,20 +128,6 @@ namespace LyncLogger
 		/// <param name="e"></param>
 		private static void Conversations_ConversationAdded(object sender, ConversationManagerEventArgs e)
 		{
-			void WireUpParticipant(Participant participant, string s)
-			{
-				InstantMessageModality remoteImModality =
-					(InstantMessageModality) participant.Modalities.FirstOrDefault(x=> x.Key == ModalityTypes.InstantMessage).Value;
-				var handler = typeof(InstantMessageModality).GetField("InstantMessageReceived", BindingFlags.NonPublic | BindingFlags.Instance).GetValue(remoteImModality) as Delegate;
-				if (handler == null)
-				{
-					//detect all messages (including user's)
-					remoteImModality.InstantMessageReceived += (__sender, __e) =>
-					{
-						RemoteImModality_InstantMessageReceived(__sender, __e, s);
-					};
-				}
-			}
 
 			String firstContactName = e.Conversation.Participants.Count > 1
 			? e.Conversation.Participants[1].Contact.GetContactInformation(ContactInformationType.DisplayName).ToString()
@@ -183,7 +169,24 @@ namespace LyncLogger
 				}
 			};
 			Start365Conversation(conv);
+			EventHandler<MessageSentEventArgs> listener = (__sender, __e) =>
+			{
+				RemoteImModality_InstantMessageReceived(__sender, __e, fileLog);
+			};
+			void WireUpParticipant(Participant participant, string s)
+			{
+				InstantMessageModality remoteImModality =
+					(InstantMessageModality)participant.Modalities.FirstOrDefault(x => x.Key == ModalityTypes.InstantMessage).Value;
+				var handler = typeof(InstantMessageModality).GetField("InstantMessageReceived", BindingFlags.NonPublic | BindingFlags.Instance).GetValue(remoteImModality) as Delegate;
 
+				
+				if (handler != null)
+				{
+					//detect all messages (including user's)
+					remoteImModality.InstantMessageReceived -= listener;
+				}
+				remoteImModality.InstantMessageReceived += listener;
+			}
 			foreach (Participant participant in conv.Participants)
 			{
 				WireUpParticipant(participant, fileLog);
@@ -282,7 +285,7 @@ namespace LyncLogger
 				HtmlAgilityPack.HtmlDocument doc = new HtmlAgilityPack.HtmlDocument();
 				doc.LoadHtml(Rtf.ToHtml(message));
 				message = string.Empty;
-				List<HtmlNode> paragraphs = doc.DocumentNode.SelectNodes("//body/p").ToList();
+				List<HtmlNode> paragraphs = doc.DocumentNode.SelectNodes("//p").ToList();
 				foreach (HtmlNode paragraph in paragraphs)
 				{
 					message += paragraph.InnerHtml;
