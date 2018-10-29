@@ -159,6 +159,13 @@ namespace LyncLogger
 			}
 
 			Conversation conv = e.Conversation;
+			if(conv.Properties[ConversationProperty.Inviter] == null)
+			{
+				return;
+				//Disable meetings/conferences. Having two conversations at a time with the same person causes conversations to get lost. It's an issue with the Lync SDK.
+				//Meetings have the least amount of valuable text conversation, so it is the victim here just based on priority.
+
+			}
 			conv.StateChanged += (o, args) =>
 			{
 				if (args.NewState == ConversationState.Terminated)
@@ -169,63 +176,21 @@ namespace LyncLogger
 				}
 			};
 			Start365Conversation(conv);
-			EventHandler<MessageSentEventArgs> listener = (__sender, __e) =>
-			{
-				RemoteImModality_InstantMessageReceived(__sender, __e, fileLog);
-			};
-			void WireUpParticipant(Participant participant, string s)
-			{
-				InstantMessageModality remoteImModality =
-					(InstantMessageModality)participant.Modalities.FirstOrDefault(x => x.Key == ModalityTypes.InstantMessage).Value;
-				var handler = typeof(InstantMessageModality).GetField("InstantMessageReceived", BindingFlags.NonPublic | BindingFlags.Instance).GetValue(remoteImModality) as Delegate;
-
-				
-				if (handler != null)
-				{
-					//detect all messages (including user's)
-					remoteImModality.InstantMessageReceived -= listener;
-				}
-				remoteImModality.InstantMessageReceived += listener;
-			}
-			foreach (Participant participant in conv.Participants)
-			{
-				WireUpParticipant(participant, fileLog);
-			}
 			//detect all participant (including user)
 			conv.ParticipantAdded += (_sender, _e) =>
 			{
 				var participant = _e.Participant;
-				WireUpParticipant(participant, fileLog);
+
+				InstantMessageModality remoteImModality =
+					(InstantMessageModality)participant.Modalities.FirstOrDefault(x => x.Key == ModalityTypes.InstantMessage && x.Value.Conversation == conv).Value;
+				
+				remoteImModality.InstantMessageReceived += (__sender, __e) =>
+				{
+					RemoteImModality_InstantMessageReceived(__sender, __e, fileLog);
+				};
 			};
 		}
 		
-
-		/// <summary>
-		/// log to fileLog the date of the start and end of a call
-		/// (ModalityStateChanged callback)
-		/// </summary>
-		/// <param name="e"></param>
-		/// <param name="fileLog"></param>
-		private static void CallImModality_ModalityStateChanged(ModalityStateChangedEventArgs e, String fileLog)
-		{
-			if (TextLoggingEnabled)
-			{
-				//write log only on connection or disconnection
-				if (e.NewState == ModalityState.Connected || e.NewState == ModalityState.Disconnected)
-				{
-					//write start/end info to log
-					using (FileStream stream = File.Open(fileLog, FileMode.Append, FileAccess.Write, FileShare.ReadWrite))
-					{
-						using (StreamWriter writer = new StreamWriter(stream))
-						{
-							writer.WriteLine(LogAudio, (e.NewState == ModalityState.Connected) ? "started" : "ended",
-								DateTime.Now.ToString("HH:mm:ss"));
-						}
-					}
-				}
-			}
-		}
-
 		/// <summary>
 		/// log to fileLog all messages of a conversation
 		/// (InstantMessageReceived callback)
